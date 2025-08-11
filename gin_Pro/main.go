@@ -11,6 +11,8 @@ import (
 
 	"log"
 
+	// _ "blog_system/docs"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -28,25 +30,44 @@ func main() {
 
 	router := gin.Default()
 
+	// 配置Swagger路由outer
+	// router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	router.Use(middleWare.JWTAuth())
 
-	router.POST("/register", service.Register)
+	// 全局中间件
+	// Logger 中间件将日志写入 gin.DefaultWriter，即使你将 GIN_MODE 设置为 release。
+	// By default gin.DefaultWriter = os.Stdout
+	// router.Use(gin.Logger())
 
-	router.POST("/login", service.Login)
+	// Recovery 中间件会 recover 任何 panic。如果有 panic 的话，会写入 500。
+	router.Use(gin.Recovery())
 
-	article := router.Group("/article")
+	preRouter := router.Group("/api/v1")
 	{
-		article.GET("/getList", service.GetUserArticleList)
-		article.GET("/getByID", service.GetArticleById)
-		article.POST("/create", service.CreateArticle)
-		article.POST("/update", service.UpdateArticle)
-		article.POST("/delete", service.DeleteArticle)
-	}
+		// preRouter.GET("/test", func(c *gin.Context) {
+		// 	c.JSON(200, gin.H{
+		// 		"message": "pong",
+		// 	})
+		// })
+		preRouter.POST("/register", service.Register)
 
-	comment := router.Group("/comment")
-	{
-		comment.GET("/getList", service.GetCommentById)
-		comment.POST("/create", service.CreateComment)
+		preRouter.POST("/login", service.Login)
+
+		article := preRouter.Group("/article")
+		{
+			article.GET("/getList", service.GetUserArticleList)
+			article.GET("/getByID", service.GetArticleById)
+			article.POST("/create", service.CreateArticle)
+			article.POST("/update", service.UpdateArticle)
+			article.POST("/delete", service.DeleteArticle)
+		}
+
+		comment := preRouter.Group("/comment")
+		{
+			comment.GET("/getList", service.GetCommentById)
+			comment.POST("/create", service.CreateComment)
+		}
 	}
 
 	port := os.Getenv("PORT")

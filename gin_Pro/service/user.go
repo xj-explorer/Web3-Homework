@@ -2,7 +2,7 @@ package service
 
 import (
 	blogModel "blog_system/model"
-	"net/http"
+	"blog_system/utils"
 	"time"
 
 	"log"
@@ -28,13 +28,13 @@ func Register(c *gin.Context) {
 	db := blogModel.GetDB()
 	var params RegisterParams
 	if err := c.ShouldBind(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, -1, err.Error())
 		return
 	}
 	// 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		utils.Error(c, -1, "Failed to hash password")
 		return
 	}
 	params.Password = string(hashedPassword)
@@ -43,30 +43,29 @@ func Register(c *gin.Context) {
 		Password: string(hashedPassword),
 		Email:    params.Email,
 	}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		utils.Error(c, -1, "Failed to create user")
 		return
 	}
-
-	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
+	utils.Success(c, nil)
 }
 
 func Login(c *gin.Context) {
 	db := blogModel.GetDB()
 	var params LoginParams
 	if err := c.ShouldBind(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, -1, err.Error())
 		return
 	}
 
 	var storedUser blogModel.User
 	if err := db.Where("username = ?", params.Username).First(&storedUser).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+		utils.Error(c, -1, "Invalid username or password")
 		return
 	}
 
 	// 验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(params.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+		utils.Error(c, -1, "Invalid username or password")
 		return
 	}
 
@@ -84,16 +83,12 @@ func Login(c *gin.Context) {
 	}
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		utils.Error(c, -1, "Failed to generate token")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "login success",
-		"user": gin.H{
-			"id":       storedUser.ID,
-			"username": storedUser.Username,
-			"email":    storedUser.Email,
-		},
-		"token": tokenString,
+	utils.Success(c, gin.H{
+		"token":    tokenString,
+		"userId":   storedUser.ID,
+		"username": storedUser.Username,
 	})
 }

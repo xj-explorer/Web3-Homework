@@ -15,8 +15,8 @@ func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 定义不需要认证的路径
 		noAuthPaths := []string{
-			"/register",
-			"/login",
+			"/api/v1/register",
+			"/api/v1/login",
 		}
 
 		// 检查当前路径是否需要认证

@@ -2,7 +2,8 @@ package service
 
 import (
 	blogModel "blog_system/model"
-	"net/http"
+
+	"blog_system/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,17 +15,21 @@ func GetUserArticleList(c *gin.Context) {
 	}
 	var params Params
 	if err := c.ShouldBind(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, -1, err.Error())
+		return
+	}
+	var user blogModel.User
+	db.Where("id = ?", params.UserId).Find(&user)
+	if user.ID == 0 {
+		utils.Error(c, -1, "User not found")
 		return
 	}
 	var articleList []blogModel.Post
 	if err := db.Where("author_id = ?", params.UserId).Find(&articleList).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get article list"})
+		utils.Error(c, -1, "Failed to get article list")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"articleList": articleList,
-	})
+	utils.Success(c, articleList)
 }
 
 func GetArticleById(c *gin.Context) {
@@ -32,12 +37,10 @@ func GetArticleById(c *gin.Context) {
 	articleID := c.Query("articleId")
 	var article blogModel.Post
 	if err := db.Where("id = ?", articleID).First(&article).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get article"})
+		utils.Error(c, -1, "Failed to get article")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"article": article,
-	})
+	utils.Success(c, article)
 }
 
 func CreateArticle(c *gin.Context) {
@@ -48,18 +51,16 @@ func CreateArticle(c *gin.Context) {
 		AuthorID uint   `json:"authorId" form:"authorId" binding:"required"`
 	}
 	if err := c.ShouldBind(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, -1, err.Error())
 		return
 	}
 	article := blogModel.Post{Title: params.Title, Content: params.Content, AuthorID: params.AuthorID}
 	if err := db.Create(&article).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create article"})
+		utils.Error(c, -1, "Failed to create article")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"code":      0,
+	utils.Success(c, gin.H{
 		"articleId": article.ID,
-		"message":   "create article success",
 	})
 }
 
@@ -73,30 +74,26 @@ func UpdateArticle(c *gin.Context) {
 	}
 	var params Params
 	if err := c.ShouldBind(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, -1, err.Error())
 		return
 	}
 	var article blogModel.Post
 	if err := db.Where("id = ?", params.ID).First(&article).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get article"})
+		utils.Error(c, -1, "Failed to get article")
 		return
 	}
 	if article.AuthorID != params.AuthorID {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Only author can update article"})
+		utils.Error(c, -1, "Only author can update article")
 		return
 	}
 	article.Title = params.Title
 	article.Content = params.Content
 	article.AuthorID = params.AuthorID
 	if err := db.Save(&article).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update article"})
+		utils.Error(c, -1, "Failed to update article")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"data":    article,
-		"message": "update article success",
-	})
+	utils.Success(c, article)
 }
 
 func DeleteArticle(c *gin.Context) {
@@ -106,22 +103,20 @@ func DeleteArticle(c *gin.Context) {
 		AuthorID uint `json:"authorId" form:"authorId" binding:"required"`
 	}
 	if err := c.ShouldBind(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, -1, err.Error())
 		return
 	}
 	var article blogModel.Post
 	if err := db.Where("id = ?", params.ID).First(&article).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get article"})
+		utils.Error(c, -1, "Failed to get article")
 		return
 	}
 	if article.AuthorID != params.AuthorID {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Only author can delete article"})
+		utils.Error(c, -1, "Only author can delete article")
 		return
 	}
 	db.Delete(&article)
-	c.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"data":    article,
-		"message": "delete article success",
+	utils.Success(c, gin.H{
+		"article": article,
 	})
 }

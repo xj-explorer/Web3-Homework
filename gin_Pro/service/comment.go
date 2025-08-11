@@ -2,8 +2,9 @@ package service
 
 import (
 	blogModel "blog_system/model"
-	"net/http"
 	"time"
+
+	"blog_system/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -18,7 +19,7 @@ func CreateComment(c *gin.Context) {
 	}
 	var params Params
 	if err := c.ShouldBind(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.Error(c, -1, err.Error())
 		return
 	}
 	var comment blogModel.Comment
@@ -26,7 +27,7 @@ func CreateComment(c *gin.Context) {
 	comment.PostID = params.PostID
 	comment.UserID = params.UserID
 	if err := db.Create(&comment).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create comment"})
+		utils.Error(c, -1, "Failed to create comment")
 		return
 	}
 	type UserDTO struct {
@@ -55,10 +56,8 @@ func CreateComment(c *gin.Context) {
 		CreatedAt: comment.CreatedAt,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    0,
-		"data":    commentDTO,
-		"message": "Comment created successfully",
+	utils.Success(c, gin.H{
+		"comment": commentDTO,
 	})
 }
 
@@ -69,7 +68,7 @@ func GetCommentById(c *gin.Context) {
 	if err := db.Where("post_id = ?", articleID).Preload("User", func(db *gorm.DB) *gorm.DB {
 		return db.Select("id, username, email") // 排除password
 	}).Find(&commentList).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get comment list"})
+		utils.Error(c, -1, "Failed to get comment list")
 		return
 	}
 
@@ -102,10 +101,7 @@ func GetCommentById(c *gin.Context) {
 			CreatedAt: c.CreatedAt,
 		})
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":        0,
+	utils.Success(c, gin.H{
 		"commentList": commentDTOs,
-		"message":     "get comment list success",
 	})
 }
