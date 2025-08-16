@@ -1,0 +1,23 @@
+{
+  "name": "My First NFT",
+  "description": "This is my first NFT",
+  "image": "https://gateway.pinata.cloud/ipfs/bafkreigan6wwsnj7h2srru27vkfws5xigpgcgskbjt5v4j7owebwhkfgcy",
+  "attributes": [
+    {
+      "trait_type": "Color",
+      "value": "Blue"
+    },
+    {
+      "trait_type": "Type",
+      "value": "Climbing"
+    },
+    {
+      "trait_type": "Personality",
+      "value": "Calm"
+    },
+    {
+      "trait_type": "Level",
+      "value": "1"
+    }
+  ]
+}
