@@ -136,37 +136,17 @@ npx hardhat test test/upgrade.test.js
 # 运行工厂升级测试
 npx hardhat test test/factory-upgrade.test.js
 
-# 运行批量升级测试
-npx hardhat test test/batch-upgrade.test.js
-
 # 跳过批量升级测试
 npx hardhat test test/auction.test.js test/erc20.test.js test/factory-upgrade.test.js test/factory.test.js test/nft.test.js test/upgrade.test.js
 ```
 
 ## 合约升级
 
-### 单个合约升级
-1. 修改合约代码
-2. 编译合约
-3. 部署新的实现合约
-4. 执行升级脚本
+### 合约升级
 
 ```bash
 npx hardhat deploy --tags Upgrade --network sepolia
 ```
-
-### 批量升级拍卖合约
-1. 确保拍卖工厂合约已升级到V2版本
-2. 准备需要升级的拍卖合约列表
-3. 执行批量升级脚本
-
-```bash
-npx hardhat deploy --tags BatchUpgrade --network sepolia
-```
-
-> 注意：升级脚本使用相应的标签参数执行，确保你的升级脚本中包含了正确的标签。
-
-通过升级脚本会自动处理代理合约的upgradeTo调用，无需手动执行该步骤。
 
 
 ## 测试覆盖率
