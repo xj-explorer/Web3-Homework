@@ -1,4 +1,20 @@
-nft£º0xed96D132be5A0C7bF674DFa65612302C43125461
-erc20£º0x72cf5c620ff07b8dec8c103d7e45fff6c23ac7d2
-Auction£º0x4591C38AB3303f135cc92BA7A9592DFc4627A75D
-Factory£º0xDAd055680754E08199CbC28Aa45AFbEFBb6cCfeb
+nftï¿½ï¿½0xed96D132be5A0C7bF674DFa65612302C43125461
+erc20ï¿½ï¿½0x72cf5c620ff07b8dec8c103d7e45fff6c23ac7d2
+Auctionï¿½ï¿½0x4591C38AB3303f135cc92BA7A9592DFc4627A75D
+Factoryï¿½ï¿½0xDAd055680754E08199CbC28Aa45AFbEFBb6cCfeb
+
+
+
+
+
+nftï¼š0xed96D132be5A0C7bF674DFa65612302C43125461
+erc20ï¼š0x72cf5c620ff07b8dec8c103d7e45fff6c23ac7d2
+Auction UUPS proxy deployed to: 0x88689794C018E02db6D6aBd1e87A803688bc52A7
+Auction implementation contract deployed to: 0x4591C38AB3303f135cc92BA7A9592DFc4627A75D
+
+Deploying Auction UUPS proxy...
+Auction UUPS proxy deployed to: 0xDAd055680754E08199CbC28Aa45AFbEFBb6cCfeb
+Auction implementation contract deployed to: 0x4591C38AB3303f135cc92BA7A9592DFc4627A75D
+Deploying AuctionV2 implementation contract...
+AuctionV2 implementation deployed to: 0x59a821A84FC7A34425F4C53C12dE05e5B2EE9503
+deploying "AuctionV2" (tx: 0x33dcc4f2e40c008d7ac54bb78bcd32c5fa4eeec38e35cb7a8ebe44f1323d30cd)...: deployed at 0xe7937FeB141c01F438c0Cc7CD24009Aa3773e0C6 with 3801703 gas
