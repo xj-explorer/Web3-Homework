@@ -1,0 +1,13 @@
+{
+  "name": "task2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "compile.js",
+  "scripts": {
+    "genbin": "solcjs --bin Counter.sol",
+    "genabi": "solcjs --abi Counter.sol"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
