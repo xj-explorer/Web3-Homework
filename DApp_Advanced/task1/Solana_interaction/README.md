@@ -1,132 +1,129 @@
-# Solana区块链交互项目
+# Solana Go 区块链交互项目
 
-本项目使用 Solana Go SDK (github.com/gagliardetto/solana-go@v1.12.0) 实现了与 Solana 区块链的基本交互功能，包括查询区块信息和发送交易。
+## 项目简介
+这是一个基于Go语言和Solana Go SDK实现的区块链交互项目，提供与Solana区块链的基础交互功能。
 
-## 环境搭建
+## 功能特性
+1. **区块数据查询** - 根据区块高度或区块哈希查询区块详细信息
+2. **账户余额查询** - 通过钱包地址查询SOL余额
+3. **原生SOL转账** - 实现Solana网络上的SOL代币转账功能
 
-### 前提条件
+## 技术栈
+- Go 1.23.11
+- Solana Go SDK (github.com/gagliardetto/solana-go)
 
-- 已安装 Go 语言环境（建议 Go 1.18 或更高版本）
-- 已安装 Git
-
-### 安装步骤
-
-1. 克隆或下载本项目到本地
-
-2. 进入项目目录
-
-```bash
-cd Solana_interaction
+## 项目结构
+```
+solana-interaction/
+├── go.mod         # Go模块定义文件
+├── go.sum         # 依赖版本锁定文件
+├── main.go        # 主程序文件，包含所有核心功能实现
+└── README.md      # 项目说明文档
 ```
 
-3. 初始化 Go 模块（如果尚未初始化）
+## 安装依赖
+项目使用Go模块管理依赖，安装步骤如下：
 
 ```bash
-go mod init solana-interaction
+# 克隆项目（如需）
+# git clone <项目地址>
+
+# 进入项目目录
+cd solana-interaction
+
+# 安装依赖
+go mod tidy
 ```
 
-4. 安装 Solana Go SDK
+## 核心功能说明
 
-```bash
-go get github.com/gagliardetto/solana-go@v1.12.0
-```
+### 1. 创建Solana RPC客户端
+连接到Solana测试网络（Devnet），默认使用`https://api.devnet.solana.com`端点。
 
-## 获取 Solana 测试网络的 API Key
+### 2. 区块数据查询
+函数：`getBlockByHeightOrHash(ctx context.Context, client *rpc.Client, identifier interface{})`
 
-本项目默认使用公共的 Solana 测试网络 RPC 端点（`https://api.testnet.solana.com`），无需额外的 API Key。如果您需要使用其他 RPC 提供商（如 Alchemy、QuickNode 等）的服务，可以按照以下步骤操作：
+参数：
+- `ctx`: 上下文对象
+- `client`: Solana RPC客户端
+- `identifier`: 区块标识符（uint64类型的高度或string类型的哈希）
 
-1. 访问 RPC 提供商的网站（如 [Alchemy](https://www.alchemy.com/)、[QuickNode](https://www.quicknode.com/)）
-2. 注册账户并创建一个 Solana 测试网络的项目
-3. 获取项目提供的 RPC URL
-4. 在代码中替换默认的 RPC 端点
+返回值：
+- 区块详细信息和可能的错误
 
+### 3. 账户余额查询
+函数：`getAccountBalance(ctx context.Context, client *rpc.Client, address string)`
+
+参数：
+- `ctx`: 上下文对象
+- `client`: Solana RPC客户端
+- `address`: 钱包地址（Base58格式字符串）
+
+返回值：
+- 账户余额（以lamports为单位）和可能的错误
+
+### 4. 原生SOL转账
+函数：`transferSOL(ctx context.Context, client *rpc.Client, fromPrivateKey string, toAddress string, amount uint64)`
+
+参数：
+- `ctx`: 上下文对象
+- `client`: Solana RPC客户端
+- `fromPrivateKey`: 发送者私钥（Base58格式字符串）
+- `toAddress`: 接收者地址（Base58格式字符串）
+- `amount`: 转账金额（以lamports为单位，1 SOL = 10^9 lamports）
+
+返回值：
+- 交易签名（字符串形式）和可能的错误
+
+## 使用示例
+
+### 1. 区块查询示例
 ```go
-// 替换为您的 RPC URL
-rpcClient := rpc.New("https://your-custom-rpc-url.com")
+// 通过高度查询区块
+block, err := getBlockByHeightOrHash(ctx, client, uint64(123456789))
+if err != nil {
+    log.Fatalf("查询区块失败: %v", err)
+}
+fmt.Printf("区块高度: %d, 交易数量: %d\n", block.Slot, len(block.Transactions))
+
+// 通过哈希查询区块
+block, err = getBlockByHeightOrHash(ctx, client, "5sVQ7aC7x7...") // 实际区块哈希
 ```
 
-## 获取测试网络的 SOL
-
-在测试网络上进行交易需要测试 SOL，可以通过以下方式获取：
-
-1. 访问 Solana 官方测试水龙头：https://faucet.solana.com/
-2. 输入您的 Solana 地址
-3. 点击 "Request SOL" 按钮
-4. 稍等片刻，测试 SOL 将发送到您的地址
-
-## 运行程序
-
-### 查询区块信息
-
-默认情况下，程序会查询指定区块号的信息。运行以下命令启动程序：
-
-```bash
-go run main.go
-```
-
-程序会输出区块的哈希、时间戳、交易数量等信息。
-
-### 发送交易
-
-要发送交易，需要进行以下操作：
-
-1. 准备一个 Solana 账户的私钥（请确保这是测试网络的账户）
-2. 在 `main.go` 文件中，取消注释发送交易的代码块
-3. 替换示例中的私钥和接收地址
-4. 调整转账金额（以 lamports 为单位，1 SOL = 1,000,000,000 lamports）
-
+### 2. 余额查询示例
 ```go
-// 发送交易示例
-fmt.Println("\n正在发送交易...")
-// 发送方私钥（替换为您的私钥）
-senderPrivateKey := "YOUR_PRIVATE_KEY_HERE"
-// 接收方地址（替换为接收方地址）
-receiverAddress := "RECEIVER_ADDRESS_HERE"
-// 转账金额（以lamports为单位）
-amount := uint64(1000000000) // 1 SOL
-sendTransaction(rpcClient, senderPrivateKey, receiverAddress, amount)
+address := "9vGgxL8a..." // 实际钱包地址
+balance, err := getAccountBalance(ctx, client, address)
+if err != nil {
+    log.Fatalf("查询余额失败: %v", err)
+}
+fmt.Printf("账户余额: %f SOL\n", float64(balance)/1000000000)
 ```
 
-5. 运行程序
-
-```bash
-go run main.go
+### 3. 转账示例
+```go
+// 注意：实际使用时，请妥善保管私钥，不要硬编码在代码中
+fromPrivateKey := "your_private_key_here" // Base58格式的私钥
+toAddress := "recipient_address_here"
+amount := uint64(1000000000) // 1 SOL (1 SOL = 10^9 lamports)
+	sig, err := transferSOL(ctx, client, fromPrivateKey, toAddress, amount)
+if err != nil {
+    log.Fatalf("转账失败: %v", err)
+}
+fmt.Printf("转账成功，交易签名: %s\n", sig)
 ```
-
-程序会输出交易的哈希值、发送方、接收方和转账金额等信息。
-
-## 代码结构说明
-
-### main.go
-
-- **queryBlockInfo**: 查询指定区块号的区块信息
-  - 参数：rpcClient（RPC客户端）、blockNumber（区块号）
-  - 功能：获取区块的哈希、时间戳、交易数量等信息并输出
-
-- **sendTransaction**: 发送SOL转账交易
-  - 参数：rpcClient（RPC客户端）、senderPrivateKey（发送方私钥）、receiverAddress（接收方地址）、amount（转账金额）
-  - 功能：构造、签名并发送交易，输出交易哈希等信息
-
-- **main**: 主函数，连接RPC并调用上述功能函数
 
 ## 注意事项
+1. **安全提示**：在实际应用中，请不要将私钥直接硬编码在代码中，应使用环境变量或安全的密钥管理系统。
+2. **网络选择**：项目默认使用Solana Devnet测试网络，如需连接到主网，请修改RPC端点。
+3. **错误处理**：所有函数都包含完善的错误处理机制，请确保正确处理返回的错误。
+4. **交易费用**：Solana网络上的交易需要支付少量费用，确保发送账户有足够的余额支付费用。
 
-1. **安全问题**：
-   - 不要在代码中硬编码私钥，建议从环境变量或安全的配置文件中读取
-   - 不要将包含私钥的代码提交到版本控制系统
-   - 仅在测试网络中使用测试账户，不要使用包含真实资产的账户
+## 开发环境要求
+- Go 1.18或更高版本
+- 网络连接（用于连接Solana RPC端点）
 
-2. **错误处理**：
-   - 程序中的错误处理较为简化，实际应用中应根据需要进行更详细的错误处理
-
-3. **区块号选择**：
-   - 默认使用的区块号可能会随着网络的发展而变化，如果查询失败，可以尝试使用最新的区块号
-
-4. **交易确认**：
-   - 程序中没有包含交易确认的逻辑，实际应用中可以使用 `GetSignatureStatuses` 等方法来确认交易是否成功
-
-## 参考资料
-
-- [Solana 官方文档](https://docs.solana.com/)
-- [gagliardetto/solana-go GitHub 仓库](https://github.com/gagliardetto/solana-go)
-- [Solana 测试网络水龙头](https://faucet.solana.com/)
+## 资源链接
+- [Solana官方文档](https://docs.solana.com/)
+- [Solana Go SDK GitHub仓库](https://github.com/gagliardetto/solana-go)
+- [Solana区块浏览器](https://explorer.solana.com/)

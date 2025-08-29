@@ -3,134 +3,194 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+
 	"time"
 
-	"github.com/portto/solana-go-sdk/client"
-	"github.com/portto/solana-go-sdk/rpc"
+	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
 )
 
-// 检查RPC连接是否正常
-func checkRPCConnection(client *client.Client) bool {
-	// 增加超时时间到60秒，给网络连接更多时间
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	// 使用GetVersion来测试连接，这是一个轻量级的API调用
-	version, err := client.GetVersion(ctx)
+// getBlockByHeight 通过区块高度查询区块数据
+func getBlockByHeight(ctx context.Context, client *rpc.Client, height uint64) error {
+	// 直接调用GetBlock函数，使用默认选项
+	result, err := client.GetBlock(ctx, height)
 	if err != nil {
-		log.Printf("RPC连接测试失败: %v", err)
-		// 提供更具体的错误分析
-		if err.Error() == "context deadline exceeded" {
-			fmt.Println("  错误分析: 连接超时，可能是网络延迟高、防火墙限制或代理问题")
-			fmt.Println("  网络排查建议: 检查是否可以访问其他国际网站，可能需要调整网络设置")
-		} else if err.Error() == "dial tcp: lookup" {
-			fmt.Println("  错误分析: 无法解析主机名，可能是DNS问题或网络连接中断")
-			fmt.Println("  网络排查建议: 尝试刷新DNS缓存或更换DNS服务器")
-		} else if err.Error() == "connection refused" {
-			fmt.Println("  错误分析: 连接被拒绝，可能是端点不可用或防火墙阻止")
-		} else {
-			fmt.Println("  错误分析: 其他连接问题，请检查网络设置")
-		}
-		return false
+		return fmt.Errorf("获取区块数据失败: %w", err)
 	}
-
-	fmt.Printf("RPC连接成功！Solana版本: %s\n", version.SolanaCore)
-	return true
+	// 打印区块的基本信息
+	fmt.Printf("区块高度 %d 信息:\n", height)
+	fmt.Printf("  区块哈希: %s\n", result.Blockhash)
+	fmt.Printf("  父区块哈希: %s\n", result.PreviousBlockhash)
+	fmt.Printf("  交易数量: %d\n", len(result.Transactions))
+	fmt.Printf("  奖励数量: %d\n", len(result.Rewards))
+	return nil
 }
 
-// 连接官方测试网端点，实现详细的连接测试和问题分析
-func connectToOfficialTestnetEndpoint() (*client.Client, bool) {
-	// 只保留官方测试网端点，使用字符串直接定义
-	officialEndpoint := rpc.DevnetRPCEndpoint
-	fmt.Printf("正在连接到Solana官方测试网端点: %s\n", officialEndpoint)
+// getAccountBalance 查询指定账户的SOL余额
+func getAccountBalance(ctx context.Context, client *rpc.Client, address string) (uint64, error) {
+	// 解析账户地址
+	pubKey, err := solana.PublicKeyFromBase58(address)
+	if err != nil {
+		return 0, fmt.Errorf("无效的账户地址: %w", err)
+	}
 
-	// 初始化RPC客户端
-	rpcClient := client.NewClient(officialEndpoint)
+	// 查询余额，添加承诺类型参数
+	balance, err := client.GetBalance(ctx, pubKey, rpc.CommitmentFinalized)
+	if err != nil {
+		return 0, fmt.Errorf("获取账户余额失败: %w", err)
+	}
 
-	// 执行连接测试前的网络信息检查
-	fmt.Println("\n连接前网络诊断信息:")
-	fmt.Println("- 尝试连接的端点: https://api.testnet.solana.com")
-	fmt.Println("- 连接超时设置: 60秒")
-	fmt.Println("- 当前时间: " + time.Now().Format("2006-01-02 15:04:05"))
+	// 打印账户余额信息
+	fmt.Printf("账户 %s 余额: %.9f SOL\n", address, float64(balance.Value)/1000000000)
 
-	// 尝试连接
-	connected := checkRPCConnection(rpcClient)
-
-	return rpcClient, connected
+	// 返回余额值（lamports单位）
+	return balance.Value, nil
 }
 
-// 查询区块信息的函数
-func queryBlockInformation(rpcClient *client.Client) bool {
-	fmt.Println("\n正在查询区块信息...")
-	// 使用多个可能存在的区块号进行尝试
-	blockNumbers := []uint64{309552176, 309000000, 308000000, 307000000} // 使用多个可能存在的区块号
-	blockFound := false
+// transferSOL 执行原生SOL转账交易
+func transferSOL(ctx context.Context, client *rpc.Client, fromPrivateKey string, toAddress string, amount uint64) (string, error) {
+	// 解析发送者私钥
+	fromKeyPair, err := solana.PrivateKeyFromBase58(fromPrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("无效的发送者私钥: %w", err)
+	}
 
-	// 查询真实的区块信息
-	for _, blockNumber := range blockNumbers {
-		fmt.Printf("尝试查询区块号: %d\n", blockNumber)
-		// 使用更长的超时时间（60秒）来查询区块信息
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
+	// 解析接收者地址
+	toPubKey, err := solana.PublicKeyFromBase58(toAddress)
+	if err != nil {
+		return "", fmt.Errorf("无效的接收者地址: %w", err)
+	}
 
-		block, err := rpcClient.GetBlock(ctx, blockNumber)
-		if err == nil {
-			// 成功获取到区块信息，输出详细内容
-			fmt.Println("=== 区块信息 ===")
-			fmt.Printf("区块号: %d\n", blockNumber)
-			// block.Blockhash已经是string类型，不需要调用String()方法
-			fmt.Printf("区块哈希: %s\n", block.Blockhash)
-			// 修复字段名大小写问题
-			fmt.Printf("父区块哈希: %d\n", block.ParentSLot)
-			fmt.Printf("交易数量: %d\n", len(block.Transactions))
-			// 正确处理 BlockTime 指针
-			if block.BlockTime != nil {
-				fmt.Printf("区块时间戳: %s\n", time.Unix(int64(*block.BlockTime), 0).Format("2006-01-02 15:04:05"))
-			}
+	// 获取最新区块哈希，用于交易
+	recentBlockhash, err := client.GetLatestBlockhash(ctx, rpc.CommitmentFinalized)
+	if err != nil {
+		return "", fmt.Errorf("获取最新区块哈希失败: %w", err)
+	}
 
-			// 输出前5个交易的信息
-			fmt.Println("\n前5个交易信息:")
-			for i, tx := range block.Transactions {
-				if i >= 5 {
-					break
-				}
-				fmt.Printf("交易 %d: %v\n", i+1, tx.Transaction.Signatures)
-			}
-			blockFound = true
-			break
+	// 构建转账指令的数据
+	transferData := make([]byte, 9)
+	transferData[0] = 2 // 转账指令代码
+	// 金额转为小端字节序
+	for i := 0; i < 8; i++ {
+		transferData[1+i] = byte(amount >> (i * 8))
+	}
+
+	// 创建账户元数据
+	fromAccount := &solana.AccountMeta{
+		PublicKey:  fromKeyPair.PublicKey(),
+		IsSigner:   true,
+		IsWritable: true,
+	}
+	toAccount := &solana.AccountMeta{
+		PublicKey:  toPubKey,
+		IsSigner:   false,
+		IsWritable: true,
+	}
+
+	// 创建指令
+	transferInstruction := solana.NewInstruction(
+		solana.SystemProgramID,
+		solana.AccountMetaSlice{fromAccount, toAccount},
+		transferData,
+	)
+
+	// 创建交易
+	tx, err := solana.NewTransaction(
+		[]solana.Instruction{transferInstruction},
+		recentBlockhash.Value.Blockhash,
+		solana.TransactionPayer(fromKeyPair.PublicKey()),
+	)
+	if err != nil {
+		return "", fmt.Errorf("创建交易失败: %w", err)
+	}
+
+	// 签名交易
+	_, err = tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		if key.Equals(fromKeyPair.PublicKey()) {
+			return &fromKeyPair
 		}
-		fmt.Printf("区块 %d 查询失败: %v\n", blockNumber, err)
-		// 查询失败后等待2秒再试下一个区块号
-		time.Sleep(2 * time.Second)
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("签名交易失败: %w", err)
 	}
 
-	if !blockFound {
-		fmt.Println("\n无法查询到任何区块信息。请尝试使用不同的区块号。")
+	// 发送交易
+	sig, err := client.SendTransaction(ctx, tx)
+	if err != nil {
+		return "", fmt.Errorf("发送交易失败: %w", err)
 	}
 
-	return blockFound
+	// 打印交易信息
+	fmt.Printf("转账交易已发送\n")
+	fmt.Printf("  交易签名: %s\n", sig)
+	fmt.Printf("  发送者: %s\n", fromKeyPair.PublicKey())
+	fmt.Printf("  接收者: %s\n", toPubKey)
+	fmt.Printf("  转账金额: %.9f SOL\n", float64(amount)/1000000000)
+
+	return sig.String(), nil
+}
+
+// demoBalanceQuery 演示查询账户余额功能
+func demoBalanceQuery(ctx context.Context, client *rpc.Client) {
+	// 示例账户地址（Solana基金会的公开地址）
+	demoAccount := "7xKDfKtkzC8U3w9L527VqJxQmP3Gm77S6XcNwG3yKzX"
+
+	fmt.Println("\n查询账户余额:")
+	fmt.Printf("查询示例账户 %s 的余额...\n", demoAccount)
+
+	// 调用getAccountBalance函数查询余额
+	_, err := getAccountBalance(ctx, client, demoAccount)
+	if err != nil {
+		fmt.Printf("查询余额失败: %v\n", err)
+		fmt.Println("提示：您可以尝试替换为其他有效的测试网账户地址")
+	}
 }
 
 func main() {
-	// 连接到Solana测试网络
-	fmt.Println("正在连接到Solana测试网络...")
+	// 创建带超时的上下文
+	// 设置30秒超时，这样可以控制RPC调用的最大等待时间
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel() // 确保在函数退出时取消上下文
 
-	var rpcClient *client.Client
-	var connected bool
+	// 创建RPC客户端连接到Solana测试网络
+	// 注意：中国大陆可能难以直接连接Solana官方RPC端点
 
-	// 只连接官方测试网端点
-	rpcClient, connected = connectToOfficialTestnetEndpoint()
+	endpoint := rpc.TestNet_RPC
+	// 创建客户端
+	client := rpc.New(endpoint)
 
-	// 如果连接失败，提供更详细的网络排查建议
-	if !connected {
-		fmt.Println("\n=== Solana官方测试网端点连接失败 ===")
+	fmt.Println("Solana交互功能演示")
+	fmt.Printf("连接到Solana测试网络: %s\n", endpoint)
+	fmt.Println("注意：如果连接失败，可能是网络限制，请尝试更换注释中提供的其他端点")
+
+	// 获取最新区块高度
+	latestBlockHeight, err := client.GetSlot(ctx, rpc.CommitmentFinalized)
+	if err != nil {
+		fmt.Printf("获取最新区块高度失败: %v\n", err)
 		return
 	}
 
-	// 调用函数查询区块信息
-	if connected {
-		queryBlockInformation(rpcClient)
+	fmt.Printf("最新区块高度: %d\n", latestBlockHeight)
+	fmt.Println("查询区块数据...")
+
+	// 调用getBlockByHeight函数查询最新区块数据
+	// 为了避免查询太大的区块，我们查询比最新区块小一些的区块
+	blockHeight := latestBlockHeight - 10
+	err = getBlockByHeight(ctx, client, blockHeight)
+	if err != nil {
+		fmt.Printf("获取区块数据失败: %v\n", err)
+		return
 	}
 
+	// // 查询示例账户余额
+	// demoBalanceQuery(ctx, client)
+
+	// // 注意：以下转账功能需要有效的私钥才能执行
+	// // 为了安全，这里不执行实际的转账操作，仅打印提示信息
+	// fmt.Println("\n转账功能演示:")
+	// fmt.Println("注意：实际转账需要提供有效的发送者私钥")
+	// fmt.Println("您可以在transferSOL函数中填入有效的私钥、接收地址和转账金额来测试转账功能")
+
+	// fmt.Println("\nSolana交互功能演示完成")
 }
