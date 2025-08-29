@@ -1,6 +1,6 @@
-# Hardhat Counter 合约项目
+# Hardhat 可升级 Counter 合约项目
 
-这是一个基于 Hardhat v2 的简单计数器合约项目，使用 Hardhat Ignition 进行合约部署。
+这是一个基于 Hardhat v2 的可升级计数器合约项目，支持使用 OpenZeppelin 的升级插件进行合约升级，同时保留合约状态。
 
 ## 项目结构
 
@@ -9,18 +9,25 @@
 ├── README.md         # 项目说明文档
 ├── .env              # 环境变量配置文件（不提交到代码仓库）
 ├── contracts/        # 智能合约源码目录
-│   └── Counter.sol   # 计数器合约
+│   ├── Counter.sol   # 原始计数器合约
+│   ├── CounterUpgradeable.sol # 可升级版本的计数器合约
+│   └── Counter_v2.sol # 升级后的计数器合约，继承自CounterUpgradeable
 ├── hardhat.config.js # Hardhat 配置文件
 ├── ignition/         # Hardhat Ignition 部署模块
 │   └── modules/      # 部署模块目录
-│       └── Counter.js # Counter合约的部署模块
+│       ├── Counter.js # Counter合约的部署模块
+│       └── CounterUpgradeable.js # CounterUpgradeable合约的部署模块
 ├── package-lock.json # 依赖锁文件
 ├── package.json      # 项目依赖配置
 ├── scripts/          # 脚本文件目录
 │   ├── interact-with-local-counter.js # 与本地网络Counter合约交互的脚本
-│   └── interact-with-sepolia-counter.js # 与Sepolia测试网络Counter合约交互的脚本
+│   ├── interact-with-sepolia-counter.js # 与Sepolia测试网络Counter合约交互的脚本
+│   ├── interact-with-sepolia-counterUpgradeable.js # 与Sepolia测试网络可升级CounterUpgradeable合约交互的脚本
+│   ├── deploy-upgradeable-counter.js # 部署可升级Counter合约的脚本
+│   └── upgrade-counter.js # 升级Counter合约的脚本
 └── test/             # 测试文件目录
-    └── Counter.test.js # 计数器合约测试用例
+    ├── Counter.test.js # 计数器合约测试用例
+    └── CounterUpgradeable.test.js # 可升级计数器合约测试用例
 ```
 
 ## 安装依赖
@@ -151,6 +158,161 @@ REPORT_GAS=true npx hardhat test
    - 执行重置计数操作
    - 显示每个操作后的计数值和交易哈希
    - 提供Etherscan上查看合约的链接
+
+
+
+## 部署可升级合约
+
+本项目支持使用 OpenZeppelin 的升级插件部署可升级合约。这种方式可以在不改变合约地址和保留合约状态的情况下更新合约代码。
+
+### 部署可升级合约到本地开发网络
+
+1. 首先启动本地 Hardhat 节点：
+   ```shell
+   npx hardhat node
+   ```
+
+2. 在另一个终端中使用专门的部署脚本来部署可升级合约：
+   ```shell
+   npx hardhat run scripts/deploy-upgradeable-counter.js --network localhost
+   ```
+
+3. 部署成功后，控制台会显示代理合约地址和实现合约地址：
+   ```
+   可升级合约部署成功！
+   代理合约地址: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+   实现合约地址: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+   ```
+
+### 部署可升级合约到 Sepolia 测试网络
+
+```shell
+npx hardhat run scripts/deploy-upgradeable-counter.js --network sepolia
+代理合约地址: 0x2653e2f4485D95c5737fe0274E9B9A83E0c0A318
+实现合约地址: 0x7D11dF13C7B3223248f049cCdaC7AcA0df516b87
+新的实现合约地址: 0x58F4fc233C4FBf585EADb860366963B042F69fc5
+```
+### 合约验证
+
+在验证本地网络上的合约之前，请确保已启动本地节点：
+```shell
+npx hardhat node
+```
+
+然后在另一个终端中执行以下命令进行验证：
+```shell
+npx hardhat verify --network localhost 0x7D11dF13C7B3223248f049cCdaC7AcA0df516b87
+npx hardhat verify --network sepolia 0x7D11dF13C7B3223248f049cCdaC7AcA0df516b87
+```
+
+
+## 与 Sepolia 测试网络上的可升级合约交互
+
+部署完成后，可以使用专门的交互脚本来与Sepolia测试网络上的可升级合约进行交互。
+
+### 步骤说明
+
+1. 首先，在部署可升级合约后，记录控制台输出的代理合约地址。
+
+2. 编辑 `scripts/interact-with-sepolia-counterUpgradeable.js` 文件，将 `proxyContractAddress` 变量替换为实际部署的代理合约地址：
+   ```javascript
+   // 替换为实际的代理合约地址
+   const proxyContractAddress = "YOUR_PROXY_CONTRACT_ADDRESS";
+   ```
+
+3. 确保 `.env` 文件中设置了正确的环境变量：
+   ```
+   SEPOLIA_URL=https://eth-sepolia.g.alchemy.com/v2/your-api-key
+   PRIVATE_KEY=your-private-key
+   ```
+
+4. 执行交互脚本：
+   ```shell
+   npx hardhat run scripts/interact-with-sepolia-counterUpgradeable.js --network sepolia
+   ```
+
+### 脚本功能
+
+该脚本会执行以下操作：
+- 连接到Sepolia测试网络
+- 显示当前使用的账户地址和余额
+- 连接到已部署的可升级合约代理地址
+- 查看当前计数值
+- 执行增加计数操作
+- 执行减少计数操作
+- 执行重置计数操作
+- 如果合约已升级到Counter_v2版本，会尝试调用v2版本特有的方法（helloWorld和multiply）
+- 检查合约拥有者
+- 提供Etherscan上查看合约的链接
+
+### 注意事项
+
+- 确保您的账户中有足够的Sepolia ETH用于支付Gas费用
+- 代理合约地址在升级前后不会改变，始终使用同一个地址与合约交互
+- 如果合约尚未升级到v2版本，脚本会自动跳过v2特有方法的调用并给出提示
+- 所有链上操作都需要等待交易确认，在Sepolia测试网络上通常需要10-30秒
+
+
+## 升级合约
+
+项目支持将已部署的可升级合约升级到新版本。下面是升级合约的步骤：
+
+### 升级本地开发网络上的合约
+
+1. 确保本地 Hardhat 节点正在运行
+
+2. 修改 `scripts/upgrade-counter.js` 文件，将 `proxyAddress` 变量设置为实际部署的代理合约地址
+
+3. 执行升级脚本：
+   ```shell
+   npx hardhat run scripts/upgrade-counter.js --network localhost
+   ```
+
+4. 升级成功后，控制台会显示新的实现合约地址：
+   ```
+   合约升级成功！
+   新的实现合约地址: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+   ```
+
+### 升级 Sepolia 测试网络上的合约
+
+1. 修改 `scripts/upgrade-counter.js` 文件，将 `proxyAddress` 变量设置为实际部署的代理合约地址
+
+2. 执行升级脚本：
+   ```shell
+   npx hardhat run scripts/upgrade-counter.js --network sepolia
+   ```
+
+## 测试可升级合约
+
+项目包含专门用于测试可升级合约的测试用例，可以使用以下命令运行：
+
+```shell
+npx hardhat test test/CounterUpgradeable.test.js
+```
+
+测试用例包括：
+- 基本功能测试（增加、减少、重置计数）
+- 事件测试
+- 合约升级测试（验证升级后状态是否保留，新功能是否正常工作）
+
+
+## 可升级合约的主要变化
+
+### CounterUpgradeable 合约
+
+- 继承自 `Initializable`, `UUPSUpgradeable`, 和 `OwnableUpgradeable`
+- 使用 `initialize` 函数代替构造函数
+- 实现了 `_authorizeUpgrade` 函数以控制升级权限
+- 添加了存储间隙 `__gap` 以确保未来升级的安全性
+
+### Counter_v2 合约
+- 继承自 `CounterUpgradeable`
+- 重写了 `increment` 方法，每次增加2而不是1
+- 重写了 `reset` 方法，添加了更多的日志和事件
+- 添加了新的 `multiply` 方法，用于将计数乘以指定倍数
+- 添加了简单的 `helloWorld` 函数
+
 
 
 ## 合约功能说明

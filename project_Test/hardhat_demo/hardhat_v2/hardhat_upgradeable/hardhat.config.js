@@ -3,6 +3,8 @@ require('dotenv').config()
 // 导入Hardhat工具包，它包含了常用的Hardhat插件和功能
 // 其中包括dotenv功能，可以自动读取.env文件中的环境变量
 require("@nomicfoundation/hardhat-toolbox");
+// 导入OpenZeppelin的Hardhat升级插件，用于部署可升级合约
+require("@openzeppelin/hardhat-upgrades");
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -38,5 +40,12 @@ module.exports = {
   etherscan: {
     // Etherscan API密钥，从环境变量读取
     apiKey: process.env.ETHERSCAN_API_KEY
+  },
+  
+  // Sourcify配置，Sourcify是一个开源的智能合约源代码验证服务
+  // 启用此配置后，Hardhat 会在部署合约时支持将合约源代码提交到 Sourcify 进行验证
+  sourcify: {
+    // 设置为 true 表示启用 Sourcify 合约源代码验证功能
+    enabled: true
   }
 };
