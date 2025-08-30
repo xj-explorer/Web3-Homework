@@ -7,6 +7,7 @@
 1. **区块数据查询** - 根据区块高度或区块哈希查询区块详细信息
 2. **账户余额查询** - 通过钱包地址查询SOL余额
 3. **原生SOL转账** - 实现Solana网络上的SOL代币转账功能
+4. **WebSocket账户监控** - 通过WebSocket连接监控特定账户的状态变更
 
 ## 技术栈
 - Go 1.23.11
@@ -51,7 +52,21 @@ go mod tidy
 返回值：
 - 区块详细信息和可能的错误
 
-### 3. 账户余额查询
+### 3. WebSocket账户监控
+函数：`createWebSocketSubscription(ctx context.Context) (*ws.Client, error)`
+
+功能说明：
+- 建立与Solana开发网的WebSocket连接
+- 设置特定账户（8WSxggj7axfcrF9A36XN7gnpdRDLWBJos7XitJmSBJHV）的状态监控
+- 在账户余额、数据或所有者发生变化时提供通知
+
+参数：
+- `ctx`: 上下文对象，用于控制连接生命周期
+
+返回值：
+- WebSocket客户端实例和可能的错误
+
+### 4. 账户余额查询
 函数：`getAccountBalance(ctx context.Context, client *rpc.Client, address string)`
 
 参数：
@@ -62,7 +77,7 @@ go mod tidy
 返回值：
 - 账户余额（以lamports为单位）和可能的错误
 
-### 4. 原生SOL转账
+### 5. 原生SOL转账
 函数：`transferSOL(ctx context.Context, client *rpc.Client, fromPrivateKey string, toAddress string, amount uint64)`
 
 参数：
@@ -77,7 +92,26 @@ go mod tidy
 
 ## 使用示例
 
-### 1. 区块查询示例
+### 1. WebSocket账户监控示例
+```go
+// 创建带超时的上下文
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+// 创建WebSocket订阅
+wsClient, err := createWebSocketSubscription(ctx)
+if err != nil {
+    log.Fatalf("创建WebSocket订阅失败: %v", err)
+}
+
+// 保持程序运行一段时间以接收事件
+fmt.Println("等待接收WebSocket事件日志...")
+time.Sleep(5 * time.Second)
+
+// 程序结束时，通过取消上下文自动关闭WebSocket连接
+```
+
+### 2. 区块查询示例
 ```go
 // 通过高度查询区块
 block, err := getBlockByHeightOrHash(ctx, client, uint64(123456789))
@@ -90,7 +124,7 @@ fmt.Printf("区块高度: %d, 交易数量: %d\n", block.Slot, len(block.Transac
 block, err = getBlockByHeightOrHash(ctx, client, "5sVQ7aC7x7...") // 实际区块哈希
 ```
 
-### 2. 余额查询示例
+### 3. 余额查询示例
 ```go
 address := "9vGgxL8a..." // 实际钱包地址
 balance, err := getAccountBalance(ctx, client, address)
@@ -100,7 +134,7 @@ if err != nil {
 fmt.Printf("账户余额: %f SOL\n", float64(balance)/1000000000)
 ```
 
-### 3. 转账示例
+### 4. 转账示例
 ```go
 // 注意：实际使用时，请妥善保管私钥，不要硬编码在代码中
 fromPrivateKey := "your_private_key_here" // Base58格式的私钥
