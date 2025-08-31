@@ -205,6 +205,11 @@ npx hardhat verify --network localhost 0x7D11dF13C7B3223248f049cCdaC7AcA0df516b8
 npx hardhat verify --network sepolia 0x7D11dF13C7B3223248f049cCdaC7AcA0df516b87
 ```
 
+验证Sepolia测试网络上的合约
+```shell
+npx hardhat verify --network sepolia 0x7D11dF13C7B3223248f049cCdaC7AcA0df516b87
+```
+
 
 ## 与 Sepolia 测试网络上的可升级合约交互
 

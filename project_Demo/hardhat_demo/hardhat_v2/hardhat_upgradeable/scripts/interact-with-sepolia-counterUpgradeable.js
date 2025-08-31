@@ -13,8 +13,11 @@ async function main() {
     const balance = await ethers.provider.getBalance(signer.address);
     console.log(`账户余额: ${ethers.formatEther(balance)} ETH`);
     
+    let Counter;
     // 加载CounterUpgradeable合约工厂
-    const CounterUpgradeable = await ethers.getContractFactory("CounterUpgradeable");
+    // Counter = await ethers.getContractFactory("CounterUpgradeable");
+    // 验证升级后的V2合约时，应该加载Counter_v2合约工厂而不是CounterUpgradeable合约工厂
+    Counter = await ethers.getContractFactory("Counter_v2");
     
     // Sepolia测试网络上已部署的可升级合约代理地址
     // 注意：在可升级合约模式中，始终使用代理合约地址进行交互
@@ -23,7 +26,7 @@ async function main() {
     console.log(`正在连接到可升级合约代理地址: ${proxyContractAddress}`);
     
     // 连接到已部署的代理合约实例
-    const counterProxy = await CounterUpgradeable.attach(proxyContractAddress);
+    const counterProxy = await Counter.attach(proxyContractAddress);
     
     // 查看当前计数值（这是一个read-only操作，不需要花费Gas）
     console.log("读取当前计数值...");
@@ -78,8 +81,23 @@ async function main() {
         console.log(`helloWorld方法返回: ${helloWorldMessage}`);
         
         console.log("尝试调用v2版本特有的multiply方法...");
-        const multiplyResult = await counterProxy.multiply(5);
-        console.log(`multiply(5)方法返回: ${multiplyResult}`);
+        const currentInc1 = await counterProxy.getCount();
+        console.log(`当前计数值1: ${currentInc1}`);
+
+        const incTx = await counterProxy.increment(); // Counter_v2中增加逻辑为 +=2 
+        await incTx.wait();
+        console.log("加1交易已确认！");
+
+        const currentInc2 = await counterProxy.getCount();
+        console.log(`当前计数值2: ${currentInc2}`);
+
+        const multiplyTx = await counterProxy.multiply(5);
+        console.log(`等待乘5交易确认，交易哈希: ${multiplyTx.hash}`);
+
+        await multiplyTx.wait();
+        console.log("乘5交易已确认！");
+        currentCount = await counterProxy.getCount();
+        console.log(`multiply(5)后计数值: ${currentCount}`);
     } catch (error) {
         console.log("注意：无法调用v2版本特有的方法，可能是合约尚未升级到v2版本。");
         console.log("错误信息: ", error.message);
