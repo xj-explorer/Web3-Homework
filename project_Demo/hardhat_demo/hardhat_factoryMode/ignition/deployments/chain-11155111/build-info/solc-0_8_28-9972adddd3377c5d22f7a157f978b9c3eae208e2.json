@@ -1,0 +1,42 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-9972adddd3377c5d22f7a157f978b9c3eae208e2",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/CounterFactory.sol": "project/contracts/CounterFactory.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/Counter.sol": {
+        "content": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\ncontract Counter {\n  uint public x;\n\n  event Increment(uint by);\n\n  function inc() public {\n    x++;\n    emit Increment(1);\n  }\n\n  function incBy(uint by) public {\n    require(by > 0, \"incBy: increment should be positive\");\n    x += by;\n    emit Increment(by);\n  }\n}\n"
+      },
+      "project/contracts/CounterFactory.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.28;\r\n\r\nimport \"./Counter.sol\";\r\n\r\n/**\r\n * @title CounterFactory\r\n * @dev 工厂合约，用于创建和管理Counter合约实例\r\n * 使用工厂模式来集中管理多个Counter合约实例\r\n */\r\ncontract CounterFactory {\r\n    // 存储所有创建的Counter合约地址\r\n    Counter[] public counters;\r\n    \r\n    // 记录合约创建事件\r\n    event CounterCreated(address indexed counterAddress, address indexed creator);\r\n    \r\n    /**\r\n     * @dev 创建一个新的Counter合约实例\r\n     * @return 新创建的Counter合约地址\r\n     */\r\n    function createCounter() public returns (Counter) {\r\n        // 创建新的Counter合约实例\r\n        Counter newCounter = new Counter();\r\n        \r\n        // 将新创建的合约地址添加到数组中\r\n        counters.push(newCounter);\r\n        \r\n        // 触发创建事件\r\n        emit CounterCreated(address(newCounter), msg.sender);\r\n        \r\n        return newCounter;\r\n    }\r\n    \r\n    /**\r\n     * @dev 获取创建的Counter合约总数\r\n     * @return 已创建的Counter合约数量\r\n     */\r\n    function getCountersCount() external view returns (uint) {\r\n        return counters.length;\r\n    }\r\n    \r\n    /**\r\n     * @dev 根据索引获取Counter合约地址\r\n     * @param index 合约索引\r\n     * @return 指定索引的Counter合约地址\r\n     */\r\n    function getCounter(uint index) external view returns (Counter) {\r\n        require(index < counters.length, \"CounterFactory: Invalid index\");\r\n        return counters[index];\r\n    }\r\n    \r\n    /**\r\n     * @dev 批量创建多个Counter合约\r\n     * @param count 要创建的合约数量\r\n     * @return 创建的合约地址数组\r\n     */\r\n    function createMultipleCounters(uint count) external returns (Counter[] memory) {\r\n        require(count > 0, \"CounterFactory: Count must be greater than 0\");\r\n        \r\n        Counter[] memory newCounters = new Counter[](count);\r\n        \r\n        for (uint i = 0; i < count; i++) {\r\n            Counter counter = createCounter();\r\n            newCounters[i] = counter;\r\n        }\r\n        \r\n        return newCounters;\r\n    }\r\n}"
+      }
+    }
+  }
+}
