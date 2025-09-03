@@ -24,7 +24,10 @@
    npm run genabi
    ```
    - 记录编译后的合约ABI和字节码
-   - 运行abigen --bin=Counter_sol_Counter.bin --abi=Counter_sol_Counter.abi --pkg=Counter --out=Counter.go，生成Counter.go文件
+   - 运行以下代码，生成Counter.go文件
+   ```
+   abigen --bin=Counter_sol_Counter.bin --abi=Counter_sol_Counter.abi --pkg=Counter --out=Counter.go
+   ```
 
 ## 配置项目
 
