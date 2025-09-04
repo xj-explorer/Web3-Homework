@@ -24,11 +24,19 @@ func main() {
 	queryBlockInformation(config)
 
 	// 3. 查询指定地址的余额
-	testAddress := "tb1q3hrpakdutfxr3tawn3aqcyd0l6latcx7e4rswt" // 使用示例地址
-	queryAddressBalance(config, testAddress)
+	testAddress := "tb1q3hrpakdutfxr3tawn3aqcyd0l6latcx7e4rswt"
+	getBalance(config, testAddress)
 
-	// 4. 发送比特币交易 (注意：这里使用生成的地址作为接收方，实际使用时需要替换)
-	// sendBitcoinTransactionDemo(config, "cPskKjCgsf6vTgYeNjEFTBsnCZmHeZYaac85wKhCU7rCGg5hEajk", "tb1q3hrpakdutfxr3tawn3aqcyd0l6latcx7e4rswt")
+	// 4. 发送比特币交易 (注意：这里使用给定的私钥和地址)
+	// 从私钥派生对应的地址作为发送方地址
+	// senderPrivKey := "p2wpkh:cPskKjCgsf6vTgYeNjEFTBsnCZmHeZYaac85wKhCU7rCGg5hEajk"
+	// receiverAddr := "tb1qtwef60xk9qw7nauapefhm8wh95r5snh0a044k3"
+
+	// 由于我们使用Blockstream API，这里直接查询给定私钥对应的地址
+	// 在实际应用中，您可能需要确保该地址有足够的UTXO
+	// senderAddr := "tb1q3hrpakdutfxr3tawn3aqcyd0l6latcx7e4rswt" // 这是与给定私钥对应的测试网络地址
+
+	// sendBitcoinTransactionDemo(config, senderPrivKey, senderAddr, receiverAddr)
 }
 
 // 生成测试网络地址和私钥，并保存到文件
@@ -83,12 +91,11 @@ func queryBlockInformation(config *Config) {
 	if err != nil {
 		log.Printf("查询区块失败: %v\n", err)
 	}
-	fmt.Println("========================")
 }
 
 // 查询指定地址的余额
-func queryAddressBalance(config *Config, address string) {
-	fmt.Println("===== 查询地址余额 =====")
+func getBalance(config *Config, address string) {
+	fmt.Println("\n===== 查询地址余额 =====")
 	fmt.Printf("查询地址: %s\n", address)
 	balance, err := QueryAddressBalance(config, address)
 	if err != nil {
@@ -146,15 +153,15 @@ func QueryAddressBalance(config *Config, address string) (int64, error) {
 }
 
 // 发送比特币交易演示
-func sendBitcoinTransactionDemo(config *Config, senderPrivKey, receiverAddr string) {
+func sendBitcoinTransactionDemo(config *Config, senderPrivKey, senderAddr, receiverAddr string) {
 	fmt.Println("===== 发送比特币交易 =====")
 	// 这里使用生成的地址作为发送方和接收方仅用于演示
 	// 实际使用时，发送方私钥需要有测试币
 	amount := int64(1000) // 1000聪
 	fee := int64(1000)    // 1000聪
 
-	fmt.Printf("从 %s 发送 %d 聪到 %s\n", senderPrivKey[:10]+"...", amount, receiverAddr)
-	txHash, err := SendBitcoinTransaction(config, senderPrivKey, receiverAddr, amount, fee)
+	fmt.Printf("从 %s (地址: %s) 发送 %d 聪到 %s\n", senderPrivKey[:10]+"...", senderAddr, amount, receiverAddr)
+	txHash, err := SendBitcoinTransaction(config, senderPrivKey, senderAddr, receiverAddr, amount, fee)
 	if err != nil {
 		log.Printf("发送交易失败: %v\n", err)
 	} else {

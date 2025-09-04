@@ -13,7 +13,7 @@ import (
 
 // BlockQuery 区块查询功能结构体
 type BlockQuery struct {
-	config *Config
+	config     *Config
 	httpClient *http.Client
 }
 
@@ -46,10 +46,10 @@ func NewBlockQuery(config *Config) (*BlockQuery, error) {
 	log.Printf("成功连接到API服务器\n")
 
 	return &BlockQuery{
-		config: config,
-		httpClient: httpClient,
-	},
-	nil
+			config:     config,
+			httpClient: httpClient,
+		},
+		nil
 }
 
 // Close 关闭HTTP客户端连接（空实现，因为HTTP客户端不需要显式关闭）
@@ -104,7 +104,6 @@ func (bq *BlockQuery) GetBlockByHeight(height int64) (*wire.MsgBlock, *chainhash
 
 // PrintBlockInfo 打印区块信息到控制台
 func PrintBlockInfo(block *wire.MsgBlock, hash *chainhash.Hash, height int64) {
-	fmt.Println("================ 区块信息 ================")
 	fmt.Printf("区块高度: %d\n", height)
 	fmt.Printf("区块哈希: %s\n", hash.String())
 	fmt.Printf("前序区块哈希: %s\n", block.Header.PrevBlock.String())
@@ -112,7 +111,6 @@ func PrintBlockInfo(block *wire.MsgBlock, hash *chainhash.Hash, height int64) {
 	fmt.Printf("交易数量: %d\n", len(block.Transactions))
 	fmt.Printf("区块大小: %d 字节\n", block.SerializeSize())
 	// 注意: 区块难度需要额外计算，这里简化处理
-	fmt.Println("=========================================")
 }
 
 // QueryAndPrintBlock 查询并打印指定高度的区块信息
