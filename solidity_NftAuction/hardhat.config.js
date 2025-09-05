@@ -1,29 +1,25 @@
+require('@nomicfoundation/hardhat-toolbox');
 require('dotenv').config();
-require("@nomicfoundation/hardhat-toolbox");
-require("hardhat-deploy");
-require("@openzeppelin/hardhat-upgrades");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: "0.8.28",
   networks: {
+    hardhat: {
+      // 本地开发网络配置
+    },
     sepolia: {
-      url: process.env.SEPOLIA_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      url: process.env.SEPOLIA_RPC_URL || "https://sepolia.infura.io/v3/",
+      accounts: [process.env.PRIVATE_KEY] || [],
+      chainId: 11155111,
     },
   },
-  namedAccounts: {
-    deployer: { default: 0 },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
-  paths: {
-    sources: "./contracts",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts",
-    deploy: "./deploy",
-  },
-  deploy: {
-    enabled: true,
-    autoMine: true,
+  gasReporter: {
+    enabled: false,
+    currency: "USD",
+    gasPriceApi: "https://api.etherscan.io/api?module=proxy&action=eth_gasPrice",
   },
 };

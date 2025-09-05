@@ -1,134 +1,109 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
-import "./Auction.sol";
-import "./AuctionV2.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "./NFTAuction.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract AuctionFactory is Initializable, UUPSUpgradeable, OwnableUpgradeable {
-    // 调试事件
-    event DebugLog(address indexed caller, address indexed proxy, string message);
-    event DebugResult(bool success, bytes returnData);
-    address public auctionImplementation;
-    // 映射关系：拍卖ID到拍卖合约地址，用于记录每个拍卖合约的部署地址
-    mapping(uint256 => address) public auctions;
-    uint256 public nextAuctionId;
-    // 新增：拍卖合约实现版本号
-    uint256 public auctionVersion;
+/**
+ * @title AuctionFactory
+ * @dev 拍卖工厂合约，负责创建和管理拍卖合约实例
+ */
+contract AuctionFactory is Ownable {
+    // 存储创建的拍卖合约地址
+    address[] public auctionContracts;
+    // 映射：拍卖合约地址 -> 创建者
+    mapping(address => address) public auctionCreators;
 
-    event AuctionCreated(uint256 indexed auctionId, address indexed auctionAddress);
-    event AuctionImplementationUpdated(address indexed newImplementation, uint256 indexed newVersion);
+    // 事件定义
+    event AuctionContractCreated(address indexed auctionContract, address indexed creator);
 
-    constructor() {}
+    // Chainlink价格预言机地址
+    address public ethUsdPriceFeed;
+    // 映射：代币地址 -> 该代币对应的USD价格预言机地址
+    // 用于存储不同代币对应的Chainlink价格预言机地址，方便查询各代币与USD的价格
+    mapping(address => address) public tokenUsdPriceFeeds;
+    // 存储已设置价格预言机的代币地址列表
+    address[] public supportedTokens;
 
-    function initialize(address _auctionImplementation) external virtual initializer {
-        __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
-        auctionImplementation = _auctionImplementation;
-        nextAuctionId = 0;
-        auctionVersion = 1;
+    /**
+     * @dev 构造函数，初始化工厂合约
+     * @param _ethUsdPriceFeed ETH/USD价格预言机地址
+     */
+    constructor(address _ethUsdPriceFeed) Ownable(msg.sender) {
+        ethUsdPriceFeed = _ethUsdPriceFeed;
     }
 
-    // 实现UUPS升级所需的_authorizeUpgrade函数
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
-
-    // 新增：更新拍卖合约实现地址
-    function updateAuctionImplementation(address newImplementation) external onlyOwner {
-        require(newImplementation != address(0), "New implementation cannot be zero address");
-        auctionImplementation = newImplementation;
-        auctionVersion++; // 增加版本号
-        emit AuctionImplementationUpdated(newImplementation, auctionVersion);
+    /**
+     * @dev 设置ETH/USD价格预言机
+     * @param _ethUsdPriceFeed 新的ETH/USD价格预言机地址
+     */
+    function setEthUsdPriceFeed(address _ethUsdPriceFeed) external onlyOwner {
+        ethUsdPriceFeed = _ethUsdPriceFeed;
     }
 
-    // 创建新的拍卖合约实例（通过UUPS代理模式）
-    function createAuctionContract(
-        address ethUsdPriceFeed,
-        uint256 baseFeePercentage,
-        uint256 maxFeePercentage,
-        uint256 feeThreshold
-    ) external onlyOwner returns (address) {
-        // 使用Create2部署UUPS代理合约
-        // 将工厂合约自身设为拍卖合约的所有者，以便后续可以升级拍卖合约
-        bytes memory data = abi.encodeWithSelector(Auction.initialize.selector, 
-            ethUsdPriceFeed, baseFeePercentage, maxFeePercentage, feeThreshold, owner(), address(this));
-
-        // 使用最小代理模式创建代理合约
-        address proxy;
-        bytes32 salt = keccak256(abi.encodePacked(nextAuctionId, block.timestamp));
-        
-        // 最小代理合约字节码
-        bytes memory bytecode = abi.encodePacked(
-            hex'3d602d80600a3d3981f3363d3d373d3d3d363d73',
-            auctionImplementation,
-            hex'5af43d82803e903d91602b57fd5bf3'
-        );
-        
-        assembly {
-            proxy := create2(0, add(bytecode, 32), mload(bytecode), salt)
+    /**
+     * @dev 设置代币价格预言机
+     * @param token 代币地址
+     * @param priceFeed 价格预言机地址
+     */
+    function setTokenPriceFeed(address token, address priceFeed) external onlyOwner {
+        // 检查是否是首次设置该代币的价格预言机
+        if (tokenUsdPriceFeeds[token] == address(0) && priceFeed != address(0)) {
+            // 首次设置且价格预言机地址不为0，将代币地址添加到supportedTokens数组
+            supportedTokens.push(token);
         }
-
-        // 调用初始化函数
-        (bool success, bytes memory returnData) = proxy.call(data);
-        require(success, "Initialization failed");
-        // 验证初始化是否成功设置了baseFeePercentage
-        uint256 initializedBaseFeePercentage = abi.decode(returnData, (uint256));
-        require(initializedBaseFeePercentage == baseFeePercentage, "Initialization parameters not applied");
-
-        // 记录拍卖合约地址
-        uint256 auctionId = nextAuctionId++;
-        auctions[auctionId] = proxy;
-
-        emit AuctionCreated(auctionId, proxy);
-        return proxy;
+        // 更新或删除价格预言机地址
+        tokenUsdPriceFeeds[token] = priceFeed;
     }
 
-    // 新增：批量升级拍卖合约
-    function upgradeAuctions(uint256[] calldata auctionIds) external onlyOwner {
-        require(auctionIds.length > 0, "No auction IDs provided");
-        require(auctionIds.length <= 50, "Too many auctions to upgrade at once");
-
-        for (uint256 i = 0; i < auctionIds.length; i++) {
-            uint256 auctionId = auctionIds[i];
-            address proxy = auctions[auctionId];
-            require(proxy != address(0), "Auction does not exist");
-
-            // 调用拍卖合约的factoryUpgradeTo函数
-        Auction(payable(proxy)).factoryUpgradeTo(auctionImplementation);
+    /**
+     * @dev 创建新的拍卖合约实例
+     * @return auctionContract 新创建的拍卖合约地址
+     */
+    function createAuctionContract() external returns (address) {
+        // 创建新的拍卖合约实例
+        NFTAuction auctionContract = new NFTAuction(ethUsdPriceFeed);
+        address auctionContractAddress = address(auctionContract);
         
-        // 调用V2初始化函数
-        if (auctionVersion == 2) {
-            // 调试日志：输出调用者地址和代理地址
-            emit DebugLog(msg.sender, proxy, "Initializing V2");
-            
-            // 使用低级别调用确保函数选择器被正确识别
-            bytes memory data = abi.encodeWithSelector(AuctionV2.factoryInitializeV2.selector, address(this));
-            (bool success, bytes memory returnData) = proxy.call(data);
-            
-            // 调试日志：输出调用结果
-            emit DebugResult(success, returnData);
-            
-            require(success, "V2 initialization failed");
+        // 存储拍卖合约信息
+        auctionContracts.push(auctionContractAddress);
+        auctionCreators[auctionContractAddress] = msg.sender;
+        
+        // 为新创建的拍卖合约设置代币价格预言机
+        for (uint256 i = 0; i < supportedTokens.length; i++) {
+            address token = supportedTokens[i];
+            if (tokenUsdPriceFeeds[token] != address(0)) {
+                auctionContract.setTokenPriceFeed(token, tokenUsdPriceFeeds[token]);
+            }
         }
-        }
+        
+        emit AuctionContractCreated(auctionContractAddress, msg.sender);
+        return auctionContractAddress;
     }
 
-    // 获取拍卖合约地址
-    function getAuctionAddress(uint256 auctionId) external view returns (address) {
-        return auctions[auctionId];
+    /**
+     * @dev 获取所有创建的拍卖合约数量
+     * @return count 拍卖合约数量
+     */
+    function getAuctionContractCount() external view returns (uint256) {
+        return auctionContracts.length;
     }
 
-    // 验证拍卖合约的初始化状态
-    function verifyAuctionInitialization(uint256 auctionId, uint256 expectedBaseFeePercentage) external view returns (bool) {
-        address auctionAddress = auctions[auctionId];
-        require(auctionAddress != address(0), "Auction does not exist");
-        
-        // 调用拍卖合约的baseFeePercentage函数
-        (bool success, bytes memory returnData) = auctionAddress.staticcall(abi.encodeWithSignature("baseFeePercentage()"));
-        require(success, "Call to baseFeePercentage failed");
-        
-        uint256 actualBaseFeePercentage = abi.decode(returnData, (uint256));
-        return actualBaseFeePercentage == expectedBaseFeePercentage;
+    /**
+     * @dev 获取所有创建的拍卖合约地址
+     * @return contracts 拍卖合约地址数组
+     */
+    function getAllAuctionContracts() external view returns (address[] memory) {
+        return auctionContracts;
+    }
+
+    /**
+     * @dev 验证某个地址是否是拍卖合约的创建者
+     * @param auctionContract 拍卖合约地址
+     * @param creator 待验证的创建者地址
+     * @return isCreator 是否是创建者
+     */
+    function isAuctionCreator(address auctionContract, address creator) external view returns (bool) {
+        return auctionCreators[auctionContract] == creator;
     }
 }

@@ -1,158 +1,242 @@
 # NFT拍卖市场
 
-这是一个基于Hardhat框架开发的NFT拍卖市场，支持以下功能：
-- NFT的铸造和转移
-- ERC20代币的创建和转账
-- NFT拍卖（支持ETH和ERC20代币出价）
-- Chainlink预言机集成，实现价格比较
-- UUPS代理模式实现合约升级
-- Uniswap V2风格的工厂模式管理拍卖
-- 批量拍卖升级功能
+# NFT拍卖市场项目
+
+这是一个基于Solidity开发的NFT拍卖市场项目，支持NFT的铸造、拍卖和竞价功能，并集成了Chainlink预言机获取实时价格信息。项目采用工厂模式设计，通过AuctionFactory合约创建和管理多个NFTAuction实例。
+
+## 功能特点
+
+1. **NFT合约**：实现了增强版ERC721标准，支持NFT的铸造和转移，以及自定义元数据URI设置
+2. **ERC20代币合约**：用于参与NFT拍卖的竞价
+3. **拍卖合约**：支持创建拍卖、使用ETH或ERC20代币出价和结束拍卖功能
+4. **工厂模式**：通过工厂合约创建和管理拍卖合约实例，并集中管理代币价格预言机信息
+5. **价格预言机集成**：使用Chainlink的feedData预言机获取实时价格，方便用户比较不同代币的出价
+6. **测试网配置**：完整支持Sepolia测试网部署和测试
 
 ## 项目结构
 
 ```
-├── .gitignore              # Git忽略文件
-├── DEPLOY_TO_SEPOLIA.md    # Sepolia部署指南
-├── README.md               # 项目文档
-├── contracts/              # 智能合约
-│   ├── MyNFT.sol           # ERC721 NFT合约
-│   ├── MyERC20.sol         # ERC20代币合约
-│   ├── Auction.sol         # 拍卖合约（UUPS升级模式）
-│   ├── AuctionV2.sol       # 拍卖合约V2版本
-│   ├── AuctionFactory.sol  # 拍卖工厂合约
-│   ├── AuctionFactoryV2.sol # 拍卖工厂合约V2版本
-│   └── mock/               # 模拟合约
-│       └── MockV3Aggregator.sol # Chainlink价格预言机模拟
-├── deploy/                 # 部署脚本
-│   ├── 01-deploy-nft.js    # 部署NFT合约
-│   ├── 02-deploy-erc20.js  # 部署ERC20合约
-│   ├── 03-deploy-auction-upgradeable.js # 部署可升级版本Auction合约
-│   ├── 04-deploy-factory-upgradeable.js # 部署可升级版本AuctionFactory合约
-│   ├── 05-upgrade-auction-to-v2.js # 将Auction合约升级到V2版本
-│   ├── 06-upgrade-factory-to-v2.js # 将AuctionFactory合约升级到V2版本
-│   └── 07-upgrade-all-auctions.js # 批量升级所有拍卖合约
-├── test/                   # 测试脚本
-│   ├── nft.test.js         # 测试NFT合约
-│   ├── erc20.test.js       # 测试ERC20合约
-│   ├── auction.test.js     # 测试拍卖合约
-│   ├── factory.test.js     # 测试工厂合约
-│   ├── upgrade.test.js     # 测试合约升级功能
-│   ├── factory-upgrade.test.js # 测试工厂升级功能
-│   └── batch-upgrade.test.js # 测试批量升级功能
-├── hardhat.config.js       # Hardhat配置文件
-├── package-lock.json       # 依赖锁文件
-└── package.json            # 项目依赖
+├── contracts/            # Solidity合约文件
+│   ├── MyNFT.sol         # NFT合约（支持自定义元数据URI）
+│   ├── AuctionToken.sol  # ERC20代币合约
+│   ├── NFTAuction.sol    # 拍卖合约
+│   ├── AuctionFactory.sol # 拍卖工厂合约（修复了价格预言机设置逻辑）
+│   └── MockChainlinkAggregator.sol # 模拟Chainlink价格预言机（用于测试）
+├── ignition/modules/     # 部署脚本
+│   └── DeployContracts.js # 自定义部署脚本（已配置Sepolia测试网价格预言机）
+├── test/                 # 测试文件
+│   └── NFTAuction.test.js # 综合测试文件
+├── hardhat.config.js     # Hardhat配置文件（已配置Sepolia测试网）
+├── package.json          # 项目依赖配置
+├── package-lock.json     # 依赖版本锁定文件
+├── .gitignore            # Git忽略文件配置
+└── README.md             # 项目说明文档
 ```
 
-## 功能说明
+## 技术栈
 
-### 1. NFT合约 (MyNFT.sol)
-- 基于ERC721标准实现
-- 支持NFT铸造和转移
-- 只有合约拥有者可以铸造NFT
-- 支持NFT元数据URI设置
+- Solidity ^0.8.28
+- Hardhat ^2.26.3
+- OpenZeppelin Contracts ^5.0.0
+- Chainlink Contracts ^1.4.0
+- dotenv（用于环境变量管理）
 
-### 2. ERC20代币合约 (MyERC20.sol)
-- 基于ERC20标准实现
-- 初始供应量为1,000,000代币
-- 只有合约拥有者可以铸造新代币
-- 支持代币转账和授权
+## 安装和设置
 
-### 3. 拍卖合约 (Auction.sol)
-- 支持创建拍卖、出价、结束拍卖和取消拍卖
-- 支持ETH和ERC20代币出价
-- 动态手续费计算：根据拍卖金额调整手续费率
-- 集成Chainlink预言机，获取ETH和ERC20代币的美元价格
-- 采用UUPS代理模式实现可升级功能
-
-### 4. 可升级拍卖合约 (AuctionV2.sol)
-- 继承自Auction合约
-- 兼容UUPS代理模式
-- 新增最小出价增量百分比功能
-- 支持升级后初始化新功能(reinitializer)
-- 增加版本控制功能
-
-### 5. 拍卖工厂合约 (AuctionFactory.sol)
-- 基于Uniswap V2风格的工厂模式
-- 管理多个拍卖合约实例
-- 支持创建新的拍卖合约实例
-- 可以部署非升级版本和可升级版本的拍卖合约
-- 只有工厂合约拥有者可以创建新的拍卖合约
-
-### 6. 拍卖工厂合约V2 (AuctionFactoryV2.sol)
-- 继承自AuctionFactory合约
-- 新增批量升级功能，支持同时升级多个拍卖合约
-- 优化升级流程，确保升级安全可靠
-- 增加升级日志记录功能
-
-## 部署步骤
-
-### 1. 安装依赖
-
+1. **安装依赖**
+   
 ```bash
 npm install
 ```
 
-### 2. 配置环境变量
-
-创建`.env`文件，添加以下环境变量：
-
-```
-SEPOLIA_URL=<你的Sepolia测试网节点URL>
-PRIVATE_KEY=<你的钱包私钥>
-```
-
-### 3. 编译合约
+2. **编译合约**
+   
 ```bash
 npx hardhat compile
 ```
 
-### 4. 部署可升级版本合约到测试网
-
+3. **运行测试**
+   
 ```bash
-npx hardhat deploy --network sepolia --tags Upgradeable
+npx hardhat test
 ```
 
-### 5. 将可升级合约升级到V2版本
+## 部署配置
 
-```bash
-npx hardhat deploy --network sepolia --tags Upgrade
+### 环境变量设置
+
+项目使用环境变量管理敏感配置。请创建`.env`文件并设置以下变量：
+
 ```
-测试报告：提交测试报告，包括测试覆盖率和测试结果。
+# Sepolia测试网RPC URL（可从Infura、Alchemy等服务获取）
+SEPOLIA_RPC_URL="https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID"
 
-### 7. 运行所有测试
+# 部署合约的钱包私钥
+PRIVATE_KEY="YOUR_PRIVATE_KEY_HERE"
 
-```bash
-npm run test
-```
-
-### 8. 运行特定测试
-
-```bash
-# 运行升级测试
-npx hardhat test test/upgrade.test.js
-
-# 运行工厂升级测试
-npx hardhat test test/factory-upgrade.test.js
-
-# 跳过批量升级测试
-npx hardhat test test/auction.test.js test/erc20.test.js test/factory-upgrade.test.js test/factory.test.js test/nft.test.js test/upgrade.test.js
+# Etherscan API密钥（用于合约验证）
+ETHERSCAN_API_KEY="YOUR_ETHERSCAN_API_KEY_HERE"
 ```
 
-## 合约升级
+### Chainlink配置
 
-### 合约升级
+项目已在`DeployContracts.js`中配置了Sepolia测试网的价格预言机地址：
 
-```bash
-npx hardhat deploy --tags Upgrade --network sepolia
+```javascript
+// ETH/USD价格预言机地址（Sepolia测试网）
+const ethUsdPriceFeed = '0x694AA1769357215DE4FAC081bf1f309aDC325306';
+
+// 代币价格预言机地址（使用Sepolia测试网的EUR/USD作为示例）
+const tokenUsdPriceFeed = '0x1a81afB8146aeFfCFc5E50e8479e826E7D55b910';
 ```
 
+如需在其他网络部署，请访问[Chainlink Price Feeds文档](https://docs.chain.link/data-feeds/price-feeds/addresses)获取对应网络的价格预言机地址。
 
-## 测试覆盖率
+## 部署到Sepolia测试网
 
 ```bash
-npx hardhat coverage
+npx hardhat ignition deploy ./ignition/modules/DeployContracts.js --network sepolia
 ```
 
-运行上述命令可以查看测试覆盖率报告。
+## 部署到本地网络
+
+```bash
+npx hardhat node
+npx hardhat ignition deploy ./ignition/modules/DeployContracts.js --network localhost
+```
+
+## 合约功能说明
+
+### MyNFT合约（增强版ERC721）
+
+除了标准的ERC721功能外，MyNFT合约还提供了以下增强功能：
+
+1. **基础元数据URI设置**：通过`setBaseURI`函数设置基础元数据URI
+2. **单独元数据URI设置**：通过`setTokenURI`函数为特定NFT设置单独的元数据URI
+3. **铸造时设置元数据**：通过`safeMintWithURI`函数在铸造NFT时直接设置元数据URI
+
+```solidity
+// 铸造NFT
+function safeMint(address to) public onlyOwner
+
+// 铸造NFT并设置元数据URI
+function safeMintWithURI(address to, string memory _tokenURI) public onlyOwner
+
+// 设置基础元数据URI
+function setBaseURI(string memory baseURI) public onlyOwner
+
+// 为特定NFT设置元数据URI
+function setTokenURI(uint256 tokenId, string memory _tokenURI) public onlyOwner
+```
+
+### NFTAuction合约
+
+拍卖合约支持使用ETH或ERC20代币进行NFT拍卖：
+
+```solidity
+// 创建新的拍卖
+function createAuction(address nftContract, uint256 tokenId, uint256 startingBid, uint256 duration, address bidToken) external
+
+// 参与竞价
+function placeBid(uint256 auctionId) external payable
+
+// 结束拍卖
+function endAuction(uint256 auctionId) external
+
+// 价格转换（代币金额转USD价值）
+function convertToUsd(uint256 amount, address token) public view returns (uint256)
+```
+
+### AuctionFactory合约
+
+拍卖工厂合约负责创建和管理拍卖合约实例：
+
+```solidity
+// 创建新的拍卖合约
+function createAuctionContract() external returns (address)
+
+// 设置代币价格预言机
+function setTokenPriceFeed(address token, address priceFeed) external onlyOwner
+
+// 检查是否是拍卖合约创建者
+function isAuctionCreator(address auctionContract, address creator) public view returns (bool)
+
+// 获取支持的代币列表
+function supportedTokens(uint256 index) public view returns (address)
+```
+
+## 使用说明
+
+### 1. 铸造NFT
+
+```javascript
+// 基本铸造
+await myNFT.safeMint(recipientAddress);
+
+// 铸造并设置元数据URI
+await myNFT.safeMintWithURI(recipientAddress, "https://example.com/api/nft/1");
+```
+
+### 2. 创建拍卖
+
+```javascript
+// 通过工厂创建拍卖合约
+const auctionContractAddress = await auctionFactory.createAuctionContract();
+const nftAuction = await ethers.getContractAt('NFTAuction', auctionContractAddress);
+
+// 创建NFT拍卖（使用ETH出价）
+await nftAuction.createAuction(
+  myNFT.address,  // NFT合约地址
+  tokenId,        // NFT的ID
+  startingBid,    // 起拍价（WEI）
+  duration,       // 拍卖持续时间（秒）
+  ethers.ZeroAddress // 使用ETH出价
+);
+
+// 创建NFT拍卖（使用ERC20代币出价）
+await nftAuction.createAuction(
+  myNFT.address,  // NFT合约地址
+  tokenId,        // NFT的ID
+  startingBid,    // 起拍价
+  duration,       // 拍卖持续时间（秒）
+  auctionToken.address // 使用指定ERC20代币出价
+);
+```
+
+### 3. 参与竞价
+
+```javascript
+// 使用ETH出价
+await nftAuction.placeBid(auctionId, {
+  value: bidAmount
+});
+
+// 使用ERC20代币出价（需要先授权）
+await auctionToken.approve(nftAuction.address, bidAmount);
+await nftAuction.placeBid(auctionId);
+```
+
+### 4. 结束拍卖
+
+```javascript
+// 结束拍卖，NFT将转移给出价最高者，资金转移给卖家
+await nftAuction.endAuction(auctionId);
+```
+
+## 安全考虑
+
+1. 本合约使用了`ReentrancyGuard`来防止重入攻击
+2. 在转移资金和NFT时进行了适当的权限检查
+3. AuctionFactory合约已修复价格预言机设置逻辑，确保正确地将代币价格信息传递给新创建的拍卖合约
+4. 确保在生产环境中使用前进行全面的安全审计
+
+## 注意事项
+
+1. 本项目仅用于学习和演示目的，在生产环境中使用前需要进行全面的安全审计
+2. 在实际部署时，需要配置正确的Chainlink价格预言机地址
+3. 确保在使用前理解合约的功能和风险
+4. 私钥和敏感配置信息应存储在.env文件中，不要提交到版本控制系统
+
+## 许可证
+
+本项目采用MIT许可证。
