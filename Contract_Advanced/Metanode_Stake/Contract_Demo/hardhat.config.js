@@ -16,13 +16,15 @@ module.exports = {
   networks: {
     hardhat: {},
     sepolia: {
-      url:
-        "https://eth-sepolia.g.alchemy.com/v2/" + process.env.ALCHEMY_API_KEY,
-      accounts: [process.env.PRIVATE_KEY],
+      url: "https://sepolia.infura.io/v3/" + (process.env.INFURA_API_KEY || ""),
+      // 只有在PRIVATE_KEY存在时才使用它，否则使用hardhat默认账户
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : undefined,
       gasPrice: 30000000000, // 30 Gwei
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    // 只有在ETHERSCAN_API_KEY存在时才使用它
+    apiKey: process.env.ETHERSCAN_API_KEY || undefined,
   },
 };
+// 注意：部署到Sepolia网络前，请确保.env文件中已填入有效的API密钥和私钥
