@@ -36,6 +36,7 @@ interface IPool {
 
     function liquidity() external view returns (uint128);
 
+    // 初始化流动性池，设置初始价格
     function initialize(uint160 sqrtPriceX96) external;
 
     /// feeGrowthGlobal0X128 记录从创建到现在，每个流动性累计产生的 token0 的手续费

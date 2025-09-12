@@ -5,6 +5,7 @@ import "./interfaces/IFactory.sol";
 import "./Pool.sol";
 
 contract Factory is IFactory {
+    // 存储代币对对应的流动性池地址数组，外层映射键为第一个代币地址，内层映射键为第二个代币地址，值为流动性池地址数组
     mapping(address => mapping(address => address[])) public pools;
 
     Parameters public override parameters;
@@ -66,7 +67,7 @@ contract Factory is IFactory {
             }
         }
 
-        // save pool info
+        // save pool info，在Pool合约中进行初始化
         parameters = Parameters(
             address(this),
             token0,

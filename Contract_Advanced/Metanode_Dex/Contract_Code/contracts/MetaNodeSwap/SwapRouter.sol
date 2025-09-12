@@ -48,6 +48,7 @@ contract SwapRouter is ISwapRouter {
         returns (int256 _amount0, int256 _amount1) {
             return (_amount0, _amount1);
         } catch (bytes memory reason) {
+            // 捕获错误信息，解析需要多少 token0 和 token1
             return parseRevertReason(reason);
         }
     }
@@ -184,8 +185,10 @@ contract SwapRouter is ISwapRouter {
     function quoteExactInput(
         QuoteExactInputParams calldata params
     ) external override returns (uint256 amountOut) {
-        // 因为没有实际 approve，所以这里交易会报错，我们捕获错误信息，解析需要多少 token
-
+        // 在报价场景下，没有实际对代币进行 approve（授权）操作。在实际交易场景中，用户需要在调用 exactInput 前
+        // 对代币进行 approve 授权，这是因为 SwapRouter 合约在执行交换操作时，需要从用户账户转移代币到交易池（swapCallback）。
+        // 由于 ERC20 代币的安全机制，合约不能直接操作其他账户的代币，必须经过代币持有者的授权。
+        // 我们利用报价时因权限不足报错这一特性，捕获错误信息来解析得到交换所需的 token 数量
         return
             this.exactInput(
                 ExactInputParams({

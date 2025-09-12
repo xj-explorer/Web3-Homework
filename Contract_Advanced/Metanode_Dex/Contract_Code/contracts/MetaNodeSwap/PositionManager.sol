@@ -32,13 +32,13 @@ contract PositionManager is IPositionManager, ERC721 {
         external
         view
         override
-        returns (PositionInfo[] memory positionInfo)
+        returns (PositionInfo[] memory positionInfoList)
     {
-        positionInfo = new PositionInfo[](_nextId - 1);
+        positionInfoList = new PositionInfo[](_nextId - 1);
         for (uint32 i = 0; i < _nextId - 1; i++) {
-            positionInfo[i] = positions[i + 1];
+            positionInfoList[i] = positions[i + 1];
         }
-        return positionInfo;
+        return positionInfoList;
     }
 
     function getSender() public view returns (address) {
@@ -80,11 +80,15 @@ contract PositionManager is IPositionManager, ERC721 {
         IPool pool = IPool(_pool);
 
         // 通过获取 pool 相关信息，结合 params.amount0Desired 和 params.amount1Desired 计算这次要注入的流动性
-
+        // 从 Pool 合约中获取当前的平方根价格，该价格以 Q64.96 格式表示
         uint160 sqrtPriceX96 = pool.sqrtPriceX96();
+        // 通过 Pool 合约中的 tickLower 值，使用 TickMath 库计算下限 tick 对应的平方根价格，同样以 Q64.96 格式表示
         uint160 sqrtRatioAX96 = TickMath.getSqrtPriceAtTick(pool.tickLower());
+        // 通过 Pool 合约中的 tickUpper 值，使用 TickMath 库计算上限 tick 对应的平方根价格，以 Q64.96 格式表示
         uint160 sqrtRatioBX96 = TickMath.getSqrtPriceAtTick(pool.tickUpper());
 
+        // 根据当前价格、下限 tick 价格、上限 tick 价格以及用户期望注入的 token0 和 token1 的数量，
+        // 使用 LiquidityAmounts 库计算本次要注入的流动性数量
         liquidity = LiquidityAmounts.getLiquidityForAmounts(
             sqrtPriceX96,
             sqrtRatioAX96,
@@ -104,8 +108,10 @@ contract PositionManager is IPositionManager, ERC721 {
 
         (amount0, amount1) = pool.mint(address(this), liquidity, data);
 
+        // 铸造NFT
         _mint(params.recipient, (positionId = _nextId++));
 
+        // 计算这部分流动性产生的手续费
         (
             ,
             uint256 feeGrowthInside0LastX128,
@@ -131,8 +137,11 @@ contract PositionManager is IPositionManager, ERC721 {
         });
     }
 
+    // 检查调用者是否被授权操作指定 tokenId 的 NFT
     modifier isAuthorizedForToken(uint256 tokenId) {
+        // 获取指定 tokenId 的 NFT 所有者地址
         address owner = ERC721.ownerOf(tokenId);
+        // 检查调用者是否被授权操作该 NFT，若未授权则抛出错误
         require(_isAuthorized(owner, msg.sender, tokenId), "Not approved");
         _;
     }
@@ -172,8 +181,7 @@ contract PositionManager is IPositionManager, ERC721 {
             uint128(amount0) +
             uint128(
                 FullMath.mulDiv(
-                    feeGrowthInside0LastX128 -
-                        position.feeGrowthInside0LastX128,
+                    feeGrowthInside0LastX128 - position.feeGrowthInside0LastX128,
                     position.liquidity,
                     FixedPoint128.Q128
                 )

@@ -34,7 +34,7 @@ describe("Factory", function () {
     expect(createEvents[0].args.tickUpper).to.equal(100000);
     expect(createEvents[0].args.fee).to.equal(3000);
 
-    // simulate for test return address
+    // 模拟创建池操作，用于测试返回的地址
     const poolAddress = await factory.simulate.createPool([
       tokenA,
       tokenB,
@@ -42,7 +42,9 @@ describe("Factory", function () {
       100000,
       3000,
     ]);
+    // 验证模拟创建池返回的地址是否符合以太坊地址格式
     expect(poolAddress.result).to.match(/^0x[a-fA-F0-9]{40}$/);
+    // 验证模拟创建池返回的地址是否与实际创建事件中记录的池地址一致
     expect(poolAddress.result).to.equal(createEvents[0].args.pool);
   });
 

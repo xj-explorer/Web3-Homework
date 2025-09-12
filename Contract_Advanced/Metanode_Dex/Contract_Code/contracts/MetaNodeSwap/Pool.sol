@@ -41,20 +41,22 @@ contract Pool is IPool {
     uint128 public override liquidity;
 
     /// @inheritdoc IPool
+    /// @dev 全局 token0 的手续费增长累计值，以 Q128 定点数表示，该值记录的是累计产生的手续费，而非已经提取的手续费
     uint256 public override feeGrowthGlobal0X128;
     /// @inheritdoc IPool
+    /// @dev 全局 token1 的手续费增长累计值，以 Q128 定点数表示
     uint256 public override feeGrowthGlobal1X128;
 
     struct Position {
         // 该 Position 拥有的流动性
         uint128 liquidity;
-        // 可提取的 token0 数量
+        // 可提取的 token0 手续费数量
         uint128 tokensOwed0;
-        // 可提取的 token1 数量
+        // 可提取的 token1 手续费数量
         uint128 tokensOwed1;
         // 上次提取手续费时的 feeGrowthGlobal0X128
         uint256 feeGrowthInside0LastX128;
-        // 上次提取手续费是的 feeGrowthGlobal1X128
+        // 上次提取手续费时的 feeGrowthGlobal1X128
         uint256 feeGrowthInside1LastX128;
     }
 
@@ -89,11 +91,10 @@ contract Pool is IPool {
         // Factory 创建 Pool 时会通 new Pool{salt: salt}() 的方式创建 Pool 合约，通过 salt 指定 Pool 的地址，这样其他地方也可以推算出 Pool 的地址
         // 参数通过读取 Factory 合约的 parameters 获取
         // 不通过构造函数传入，因为 CREATE2 会根据 initcode 计算出新地址（new_address = hash(0xFF, sender, salt, bytecode)），带上参数就不能计算出稳定的地址了
-        (factory, token0, token1, tickLower, tickUpper, fee) = IFactory(
-            msg.sender
-        ).parameters();
+        (factory, token0, token1, tickLower, tickUpper, fee) = IFactory(msg.sender).parameters();
     }
 
+    // 初始化 Pool 的 价格sqrtPriceX96
     function initialize(uint160 sqrtPriceX96_) external override {
         require(sqrtPriceX96 == 0, "INITIALIZED");
         // 通过价格获取 tick，判断 tick 是否在 tickLower 和 tickUpper 之间
@@ -133,6 +134,8 @@ contract Pool is IPool {
         Position storage position = positions[params.owner];
 
         // 提取手续费，计算从上一次提取到当前的手续费
+        // tokensOwed0 表示该 Position 自上次提取手续费以来，应得的 token0 手续费数量。
+        // 通过计算全局 token0 手续费增长累计值的增量，乘以该 Position 的流动性，再除以 Q128 定点数单位得到。
         uint128 tokensOwed0 = uint128(
             FullMath.mulDiv(
                 feeGrowthGlobal0X128 - position.feeGrowthInside0LastX128,
@@ -158,7 +161,7 @@ contract Pool is IPool {
             position.tokensOwed1 += tokensOwed1;
         }
 
-        // 修改 liquidity
+        // 修改流动性池的 liquidity
         liquidity = LiquidityMath.addDelta(liquidity, params.liquidityDelta);
         position.liquidity = LiquidityMath.addDelta(
             position.liquidity,
@@ -281,13 +284,13 @@ contract Pool is IPool {
 
     // 交易中需要临时存储的变量
     struct SwapState {
-        // the amount remaining to be swapped in/out of the input/output asset
+        // 待交换的输入/输出资产的剩余数量
         int256 amountSpecifiedRemaining;
-        // the amount already swapped out/in of the output/input asset
+        // 已交换的输出/输入资产的数量
         int256 amountCalculated;
-        // current sqrt(price)
+        // 当前价格的平方根
         uint160 sqrtPriceX96;
-        // the global fee growth of the input token
+        // 输入代币的全局手续费增长累计值
         uint256 feeGrowthGlobalX128;
         // 该交易中用户转入的 token0 的数量
         uint256 amountIn;
@@ -297,6 +300,9 @@ contract Pool is IPool {
         uint256 feeAmount;
     }
 
+
+    // todo：计算逻辑理解
+    // 交易函数，用户可以通过该函数进行资产的交换
     function swap(
         address recipient,
         bool zeroForOne,
@@ -423,10 +429,15 @@ contract Pool is IPool {
 
             // 转 Token 给用户
             if (amount0 < 0)
+                // 如果 amount0 为负数，说明用户在交易中需要从池子中获取 token0。
+                // 调用 TransferHelper 的 safeTransfer 函数，将指定数量的 token0 从当前合约地址转移到接收者地址。
+                // 由于 amount0 为负数，使用 -amount0 取其绝对值转换为正整数，再转换为 uint256 类型作为转账数量。
+                // 当前合约持有 token0，向 recipient 转账不需要 recipient 进行 approve 授权
+                // 因为是合约自身调用 transfer 方法转移自己持有的代币
                 TransferHelper.safeTransfer(
-                    token0,
-                    recipient,
-                    uint256(-amount0)
+                    token0, // 要转移的代币地址，这里是 token0
+                    recipient, // 接收代币的地址
+                    uint256(-amount0) // 要转移的代币数量
                 );
         }
 

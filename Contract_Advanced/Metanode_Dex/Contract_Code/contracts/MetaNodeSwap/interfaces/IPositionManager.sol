@@ -15,7 +15,9 @@ interface IPositionManager is IERC721 {
         uint128 liquidity;
         int24 tickLower;
         int24 tickUpper;
+        // 记录该头寸拥有的 token0 数量
         uint128 tokensOwed0;
+        // 记录该头寸拥有的 token1 数量
         uint128 tokensOwed1;
         // feeGrowthInside0LastX128 和 feeGrowthInside1LastX128 用于计算手续费
         uint256 feeGrowthInside0LastX128;
