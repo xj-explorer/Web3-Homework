@@ -28,7 +28,18 @@ Counter 合约提供以下功能：
 
 ### CounterOptimized (优化版本)
 
-CounterOptimized 合约在原始功能基础上进行了多项 Gas 优化：
+CounterOptimized 合约在保持原始功能的基础上进行了多项 Gas 优化，提供以下功能：
+- 设置数字（setNumber）
+- 增加计数（increment）
+- 批量增加（add）
+- 减少计数（decrement）
+- 批量减少（subtract）
+- 乘法操作（multiply）
+- 重置计数（reset）
+- 读取当前值（number）
+- 记录每次变更的事件（Changed）
+
+优化点包括：
 - 使用 uint64 替代 uint256，减少存储占用
 - 使用内联汇编直接操作存储，减少 Solidity 的额外开销
 - 简化事件结构，减少日志数据量
@@ -38,6 +49,18 @@ CounterOptimized 合约在原始功能基础上进行了多项 Gas 优化：
 ## 项目结构
 
 ```
+├── .github/               # GitHub配置目录
+│   └── workflows/         # GitHub Actions工作流配置
+├── .gitignore             # Git忽略文件配置
+├── foundry.lock           # Foundry依赖锁文件
+├── foundry.toml           # Foundry配置文件
+├── broadcast/             # 部署交易广播记录
+│   ├── Counter.s.sol/     # Counter部署交易记录
+│   │   └── 11155111/      # Sepolia测试网(链ID:11155111)部署记录
+│   └── VerifyCounterOptimized.s.sol/ # 验证脚本交易记录
+│       └── 11155111/      # Sepolia测试网(链ID:11155111)验证记录
+├── lib/                   # 第三方库目录
+│   └── forge-std/         # Foundry标准库
 ├── src/                   # 合约源代码目录
 │   ├── Counter.sol        # 原始版本计数器合约
 │   └── CounterOptimized.sol # 优化版本计数器合约
@@ -45,12 +68,14 @@ CounterOptimized 合约在原始功能基础上进行了多项 Gas 优化：
 │   ├── Counter.t.sol      # 原始合约功能测试
 │   ├── CounterGas.t.sol   # 原始合约Gas消耗测试
 │   └── CounterOptimizedGas.t.sol # 优化合约Gas消耗测试
-├── script/                # 部署脚本
-│   └── Counter.s.sol      # Counter合约部署脚本
+├── script/                # 部署脚本目录
+│   ├── Counter.s.sol      # Counter合约部署脚本
+│   └── VerifyCounterOptimized.s.sol # 已部署合约验证脚本
 ├── scripts/               # Python脚本目录
 │   └── generate_gas_report.py # Gas报告生成脚本
 ├── Gas分析报告.md         # 原始合约Gas分析报告
-└── Gas分析报告-优化版.md   # 优化合约Gas分析报告
+├── Gas分析报告-优化版.md   # 优化合约Gas分析报告
+└── README.md              # 项目说明文档
 ```
 
 ## 快速开始
@@ -108,16 +133,88 @@ python3 scripts/generate_gas_report.py --output path/to/custom_report.md
 优化版本合约主要应用了以下 Gas 优化策略：
 
 1. **数据类型优化**：将 number 从 uint256 改为 uint64，减少存储占用
-2. **内联汇编优化**：多个函数使用内联汇编直接操作存储，减少 Solidity 的额外开销
-3. **事件优化**：简化事件结构，减少日志数据量
-4. **函数实现优化**：简化函数逻辑，减少不必要的操作步骤
-5. **短路逻辑**：在 decrement 和 subtract 函数中使用短路逻辑优化条件判断
+2. **内联汇编优化**：在 setNumber、increment、add、decrement、subtract、multiply 和 reset 函数中使用内联汇编直接操作存储，减少 Solidity 的额外开销
+3. **事件优化**：简化事件结构，只记录新值且使用 indexed 参数
+4. **构造函数优化**：直接赋值，简化逻辑
+5. **短路逻辑优化**：在 decrement 和 subtract 函数中使用短路逻辑优化条件判断
+6. **避免重复计算**：在 subtract 函数中优化条件判断逻辑
+7. **reset 函数优化**：直接设为 0，使用内联汇编进一步减少 Gas 消耗
 
 ## 部署合约
 
+项目已配置了.env文件和部署脚本，可以方便地将合约部署到Sepolia测试网。
+
+### 部署到Sepolia测试网
+
+.env文件已包含以下配置：
+- Sepolia测试网RPC URL
+- 部署私钥
+
+使用修改后的部署脚本，可以一键部署原始版本和优化版本的合约：
+
 ```shell
-forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+# 使用.env文件中的配置部署合约（推荐方式）
+forge script script/Counter.s.sol:CounterScript --rpc-url $(grep SEPOLIA_URL .env | cut -d '=' -f2) --private-key $(grep PRIVATE_KEY .env | cut -d '=' -f2) --broadcast
+# 使用 Foundry 的 forge script 命令来执行部署脚本
+# `forge script` 是 Foundry 用于执行脚本的命令，可用于部署合约、与合约交互等操作
+# `script/Counter.s.sol:CounterScript` 指定要执行的脚本文件及其内的脚本合约
+# `--rpc-url $(grep SEPOLIA_URL .env | cut -d '=' -f2)` 从 .env 文件中提取 SEPOLIA_URL 的值作为 RPC 节点地址
+# `grep SEPOLIA_URL .env` 用于在 .env 文件中查找包含 SEPOLIA_URL 的行
+# `cut -d '=' -f2` 以 '=' 为分隔符，提取等号后的第二部分内容
+# `--private-key $(grep PRIVATE_KEY .env | cut -d '=' -f2)` 从 .env 文件中提取 PRIVATE_KEY 的值作为部署使用的私钥
+# `--broadcast` 表示将脚本中的交易广播到网络上实际执行部署操作
+
+# 或者先加载环境变量再部署
+source .env
+forge script script/Counter.s.sol:CounterScript --rpc-url $SEPOLIA_URL --private-key $PRIVATE_KEY --broadcast
 ```
+
+Counter合约部署完成！
+合约地址:  0x75908E6fA69f88CB30fB62C26E8c6e9674C402DD
+CounterOptimized合约部署完成！
+合约地址:  0xFEeDE0C07608525F509bFfb4f08F814820Ee0929
+
+部署脚本会自动：
+1. 从.env文件读取Sepolia测试网RPC URL和私钥
+2. 部署Counter原始版本合约
+3. 部署CounterOptimized优化版本合约
+4. 输出合约地址和部署者信息
+
+### 部署单个合约
+
+如果你只想部署单个合约，可以使用部署脚本中的特定函数：
+
+```shell
+# 只部署原始版本合约
+forge script script/Counter.s.sol:CounterScript --sig "deployCounter()" --rpc-url $(grep SEPOLIA_URL .env | cut -d '=' -f2) --private-key $(grep PRIVATE_KEY .env | cut -d '=' -f2) --broadcast
+
+# 只部署优化版本合约
+forge script script/Counter.s.sol:CounterScript --sig "deployCounterOptimized()" --rpc-url $(grep SEPOLIA_URL .env | cut -d '=' -f2) --private-key $(grep PRIVATE_KEY .env | cut -d '=' -f2) --broadcast
+```
+
+## 验证已部署合约功能
+
+项目提供了验证脚本，用于测试已部署的CounterOptimized合约的功能是否正常。验证脚本会自动测试合约的主要功能，包括读取计数值、增加计数、增加指定值、减少计数和重置计数。
+
+### 运行验证脚本
+
+```shell
+# 使用.env文件中的配置运行验证脚本
+forge script script/VerifyCounterOptimized.s.sol:VerifyCounterOptimized --rpc-url $(grep SEPOLIA_URL .env | cut -d '=' -f2) --private-key $(grep PRIVATE_KEY .env | cut -d '=' -f2) --broadcast
+
+# 或者先加载环境变量再运行
+source .env
+forge script script/VerifyCounterOptimized.s.sol:VerifyCounterOptimized --rpc-url $SEPOLIA_URL --private-key $PRIVATE_KEY --broadcast
+```
+
+验证脚本会执行以下测试：
+1. 读取当前计数值
+2. 调用increment函数增加计数(+1)
+3. 调用add函数增加指定值(+5)
+4. 调用decrement函数减少计数(-1)
+5. 调用reset函数重置计数(设为0)
+
+每次测试都会显示当前值、预期结果和测试是否通过的信息。
 
 ## Foundry 工具使用
 
