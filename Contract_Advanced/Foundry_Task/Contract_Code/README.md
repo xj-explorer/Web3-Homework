@@ -67,7 +67,8 @@ CounterOptimized 合约在保持原始功能的基础上进行了多项 Gas 优�
 ├── test/                  # 测试文件目录
 │   ├── Counter.t.sol      # 原始合约功能测试
 │   ├── CounterGas.t.sol   # 原始合约Gas消耗测试
-│   └── CounterOptimizedGas.t.sol # 优化合约Gas消耗测试
+│   ├── CounterOptimizedGas.t.sol # 优化合约Gas消耗测试
+│   └── CounterOptimizedTest.sol # 优化合约边界条件测试
 ├── script/                # 部署脚本目录
 │   ├── Counter.s.sol      # Counter合约部署脚本
 │   └── VerifyCounterOptimized.s.sol # 已部署合约验证脚本
@@ -215,6 +216,33 @@ forge script script/VerifyCounterOptimized.s.sol:VerifyCounterOptimized --rpc-ur
 5. 调用reset函数重置计数(设为0)
 
 每次测试都会显示当前值、预期结果和测试是否通过的信息。
+
+## 测试覆盖率查看
+
+Foundry 提供了测试覆盖率分析功能，可以查看合约代码的测试覆盖情况，包括行覆盖率、语句覆盖率、分支覆盖率和函数覆盖率。
+
+### 查看测试覆盖率
+
+```shell
+# 查看所有文件的测试覆盖率
+forge coverage
+
+# 排除测试文件，只显示合约和脚本的测试覆盖率
+forge coverage --exclude-tests
+
+# 查看特定合约的测试覆盖率
+forge coverage --match-contract CounterOptimizedGasTest
+```
+
+覆盖率报告包含以下指标：
+- 行覆盖率：已测试的代码行数占总行数的百分比
+- 语句覆盖率：已测试的语句数占总语句数的百分比
+- 分支覆盖率：已测试的分支数占总分支数的百分比
+- 函数覆盖率：已测试的函数数占总函数数的百分比
+
+目前我们的合约测试覆盖率已经达到：
+- Counter.sol：100.00% 行覆盖率、100.00% 语句覆盖率、100.00% 分支覆盖率、100.00% 函数覆盖率
+- CounterOptimized.sol：100.00% 行覆盖率、100.00% 语句覆盖率、100.00% 分支覆盖率、100.00% 函数覆盖率
 
 ## Foundry 工具使用
 
